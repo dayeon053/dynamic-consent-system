@@ -8,8 +8,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.dynamicconsent.ui.detail.DetailScreen
-import com.dynamicconsent.ui.home.HomeScreen
+import com.dynamicconsent.ui.orgdetail.OrgDetailScreen
+import com.dynamicconsent.ui.orgdetail.OrgDetailTab
+import com.dynamicconsent.ui.risk.RiskListScreen
 
 @Composable
 fun AppNavHost(
@@ -18,24 +19,35 @@ fun AppNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Home.route,
+        startDestination = Screen.RiskList.route,
         modifier = modifier,
     ) {
-        composable(Screen.Home.route) {
-            HomeScreen(
-                onItemClick = { itemId ->
-                    navController.navigate(Screen.Detail.createRoute(itemId))
+        composable(Screen.RiskList.route) {
+            RiskListScreen(
+                onBackClick = { navController.popBackStack() },
+                onOrgDetailClick = { orgId ->
+                    navController.navigate(Screen.OrgDetail.createRoute(orgId, OrgDetailTab.RISK))
                 },
             )
         }
 
         composable(
-            route = Screen.Detail.route,
-            arguments = listOf(navArgument(Screen.Detail.ARG_ITEM_ID) { type = NavType.StringType }),
+            route = Screen.OrgDetail.route,
+            arguments = listOf(
+                navArgument(Screen.OrgDetail.ARG_ORG_ID) { type = NavType.StringType },
+                navArgument(Screen.OrgDetail.ARG_TAB) {
+                    type = NavType.StringType
+                    defaultValue = OrgDetailTab.CONSENT.name
+                },
+            ),
         ) { backStackEntry ->
-            val itemId = backStackEntry.arguments?.getString(Screen.Detail.ARG_ITEM_ID).orEmpty()
-            DetailScreen(
-                itemId = itemId,
+            val orgId = backStackEntry.arguments?.getString(Screen.OrgDetail.ARG_ORG_ID).orEmpty()
+            val tabName = backStackEntry.arguments?.getString(Screen.OrgDetail.ARG_TAB)
+                ?: OrgDetailTab.CONSENT.name
+            val initialTab = OrgDetailTab.entries.firstOrNull { it.name == tabName } ?: OrgDetailTab.CONSENT
+            OrgDetailScreen(
+                orgId = orgId,
+                initialTab = initialTab,
                 onBackClick = { navController.popBackStack() },
             )
         }
