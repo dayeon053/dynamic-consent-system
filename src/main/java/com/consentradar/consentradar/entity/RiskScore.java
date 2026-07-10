@@ -17,26 +17,23 @@ public class RiskScore {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long riskScoreId;
 
-    // 사용자와 N:1 관계
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // 기업과 N:1 관계
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id", nullable = false)
     private Company company;
 
-    // 위험도 점수: Risk Score = DS + (ES × TF × PC × AI) × 2
     @Column(nullable = false, precision = 5, scale = 2)
     private BigDecimal totalScore;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Grade grade;                  // 5단계 등급
+    private Grade grade;
 
     @Column(nullable = false)
-    private LocalDate scoredAt;           // 산출 날짜 (날짜별 누적 저장, append only)
+    private LocalDate scoredAt;
 
     @Column(updatable = false)
     private LocalDateTime createdAt;
@@ -47,10 +44,10 @@ public class RiskScore {
     }
 
     public enum Grade {
-        VERY_SAFE,      // 매우 안전
-        SAFE,           // 안전
-        NORMAL,         // 보통
-        DANGEROUS,      // 위험
-        VERY_DANGEROUS  // 매우 위험
+        VERY_LOW,   // 매우 안전
+        LOW,        // 안전
+        MEDIUM,     // 보통
+        HIGH,       // 위험
+        VERY_HIGH   // 매우 위험
     }
 }

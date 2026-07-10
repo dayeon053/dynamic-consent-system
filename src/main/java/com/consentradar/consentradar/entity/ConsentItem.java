@@ -16,38 +16,36 @@ public class ConsentItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long consentItemId;
 
-    // 기업과 N:1 관계 (여러 동의 항목이 하나의 기업에 속함)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id", nullable = false)
     private Company company;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private ItemType itemType;            // REQUIRED(필수) / OPTIONAL(선택)
+    private ItemType itemType;
 
     @Column(nullable = false, length = 200)
-    private String itemName;              // 항목명 (예: 마케팅 수신 동의)
+    private String itemName;
 
-    // 5대 변수 점수 (0~10)
+    // 5대 변수 점수
     @Column(nullable = false)
     private int dsScore;                  // 데이터 민감도 (Data Sensitivity)
 
     @Column(nullable = false)
-    private int esScore;                  // 외부 공유 여부 (External Sharing)
+    private int esScore;                  // 노출 범위 (Exposure Scope)
 
     @Column(nullable = false)
-    private int tfScore;                  // 제3자 제공 빈도 (Third-party Frequency)
+    private int tfScore;                  // 경과 시간 - 보관 기간 (Time Factor)
 
     @Column(nullable = false)
-    private int pcScore;                  // 처리 목적 명확성 (Purpose Clarity)
+    private double pcScore;               // 처리 목적 명확성 (Purpose Clarity) - 1.0 / 1.5
 
     @Column(nullable = false)
-    private int aiScore;                  // 자동화된 의사결정 (Automated decision-making Impact)
+    private double aiScore;               // AI 위험계수 (AI Risk Factor) - 1.0 / 1.5
 
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
-    // 연관관계
     @OneToMany(mappedBy = "consentItem", cascade = CascadeType.ALL)
     private List<UserConsentCheck> userConsentChecks;
 
