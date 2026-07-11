@@ -3,6 +3,7 @@ package com.dynamicconsent.data
 import com.dynamicconsent.data.model.Organization
 import com.dynamicconsent.data.model.OrganizationDetail
 import com.dynamicconsent.data.model.RiskGrade
+import com.dynamicconsent.domain.RiskCalculator
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -33,8 +34,8 @@ class MockJsonParsingTest {
 
         val kakao = organizations.first()
         assertEquals("카카오톡", kakao.name)
-        assertEquals(31.5, kakao.riskScore, 0.0)
-        assertEquals(RiskGrade.HIGH, kakao.riskGrade)
+        assertEquals(43.5, kakao.riskScore, 0.0)
+        assertEquals(RiskGrade.VERY_HIGH, kakao.riskGrade)
         assertEquals(0xFFFEE500, kakao.logoColor)
     }
 
@@ -64,6 +65,22 @@ class MockJsonParsingTest {
         organizations.forEach { org ->
             val detailOrg = details.getValue(org.id).organization
             assertEquals(org, detailOrg)
+        }
+    }
+
+    @Test
+    fun `JSON의 기관 점수는 동의 항목 변수 기여도로 산출한 점수와 일치한다`() {
+        val details: Map<String, OrganizationDetail> =
+            json.decodeFromString(asset("organization_details.json"))
+
+        details.forEach { (id, detail) ->
+            val enabledImpacts = detail.consentDetail.optionalConsents
+                .filter { it.enabled }
+                .map { it.variableImpact }
+            val score = RiskCalculator.calculateScore(RiskCalculator.combineImpacts(enabledImpacts))
+
+            assertEquals("$id: JSON 점수와 수식 산출 점수 불일치", detail.organization.riskScore, score, 0.0)
+            assertEquals("$id: JSON 등급과 수식 산출 등급 불일치", detail.organization.riskGrade, RiskCalculator.classifyGrade(score))
         }
     }
 }
