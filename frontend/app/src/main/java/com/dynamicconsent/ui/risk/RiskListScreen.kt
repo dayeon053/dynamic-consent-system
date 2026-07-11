@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -23,7 +22,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -109,6 +107,7 @@ fun RiskListScreen(
                         organization = org,
                         isSelected = org.id == uiState.selectedOrganizationId,
                         onClick = { viewModel.selectOrganization(org.id) },
+                        modifier = Modifier.animateItem(),
                     )
                 }
             }
@@ -132,9 +131,10 @@ private fun RiskOrgCard(
     organization: Organization,
     isSelected: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .width(100.dp)
             .height(160.dp)
             .background(organization.riskGrade.backgroundColor, RoundedCornerShape(12.dp))
@@ -154,8 +154,18 @@ private fun RiskOrgCard(
             Spacer(modifier = Modifier.height(8.dp))
             Text(organization.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = TextPrimary, maxLines = 1)
         }
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.Lock, contentDescription = null, tint = organization.riskGrade.accentColor, modifier = Modifier.size(28.dp))
+        Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "${organization.riskScore}점",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = organization.riskGrade.accentColor,
+            )
+            Text(
+                text = organization.riskGrade.displayName,
+                style = MaterialTheme.typography.labelSmall,
+                color = organization.riskGrade.accentColor,
+            )
         }
     }
 }

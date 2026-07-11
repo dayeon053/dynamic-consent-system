@@ -31,9 +31,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -125,7 +122,10 @@ fun OrgDetailScreen(
                     .padding(20.dp),
             ) {
                 when (uiState.activeTab) {
-                    OrgDetailTab.CONSENT -> ConsentTabContent(detail)
+                    OrgDetailTab.CONSENT -> ConsentTabContent(
+                        detail = detail,
+                        onConsentToggle = viewModel::toggleConsent,
+                    )
                     OrgDetailTab.RISK -> RiskAnalysisSection(riskAnalysis = detail.riskAnalysis)
                     OrgDetailTab.THIRD_PARTY -> PlaceholderContent("제3자 제공 정보")
                     OrgDetailTab.CHANGE_HISTORY -> PlaceholderContent("동의 변경 내역이 없습니다.")
@@ -137,7 +137,10 @@ fun OrgDetailScreen(
 }
 
 @Composable
-private fun ConsentTabContent(detail: OrganizationDetail) {
+private fun ConsentTabContent(
+    detail: OrganizationDetail,
+    onConsentToggle: (consentId: Int, enabled: Boolean) -> Unit,
+) {
     Column {
         Text("선택 동의", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
         Spacer(modifier = Modifier.height(16.dp))
@@ -147,7 +150,10 @@ private fun ConsentTabContent(detail: OrganizationDetail) {
                 .background(AppBackground, RoundedCornerShape(12.dp)),
         ) {
             detail.consentDetail.optionalConsents.forEach { item ->
-                OptionalConsentRow(item)
+                OptionalConsentRow(
+                    item = item,
+                    onToggle = { enabled -> onConsentToggle(item.id, enabled) },
+                )
             }
         }
 
@@ -168,8 +174,10 @@ private fun ConsentTabContent(detail: OrganizationDetail) {
 }
 
 @Composable
-private fun OptionalConsentRow(item: ConsentToggleItem) {
-    var isEnabled by remember(item.id) { mutableStateOf(item.enabled) }
+private fun OptionalConsentRow(
+    item: ConsentToggleItem,
+    onToggle: (Boolean) -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -179,8 +187,8 @@ private fun OptionalConsentRow(item: ConsentToggleItem) {
     ) {
         Text(item.title, style = MaterialTheme.typography.bodyMedium, color = TextPrimary, modifier = Modifier.weight(1f))
         Switch(
-            checked = isEnabled,
-            onCheckedChange = { isEnabled = it },
+            checked = item.enabled,
+            onCheckedChange = onToggle,
             colors = SwitchDefaults.colors(checkedTrackColor = BrandGreen),
         )
     }

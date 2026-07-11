@@ -16,6 +16,8 @@ data class ConsentToggleItem(
     val id: Int,
     val title: String,
     val enabled: Boolean,
+    /** 이 항목에 동의했을 때 유발되는 5대 변수 위험 수준. 철회 시 위험도 재계산에 사용. */
+    val variableImpact: RiskVariables = RiskVariables(),
 )
 
 @Serializable
