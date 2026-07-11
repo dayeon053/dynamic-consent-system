@@ -1,6 +1,7 @@
 package com.dynamicconsent.ui.risk
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.dynamicconsent.data.repository.DummyOrganizationRepository
 import com.dynamicconsent.data.repository.OrganizationRepository
@@ -10,9 +11,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class RiskListViewModel(
-    private val repository: OrganizationRepository = DummyOrganizationRepository(),
-) : ViewModel() {
+class RiskListViewModel @JvmOverloads constructor(
+    application: Application,
+    private val repository: OrganizationRepository = DummyOrganizationRepository(application.assets),
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(RiskListUiState())
     val uiState: StateFlow<RiskListUiState> = _uiState.asStateFlow()
