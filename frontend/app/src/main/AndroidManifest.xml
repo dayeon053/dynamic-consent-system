@@ -15,12 +15,26 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.Frontend"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- 오버레이 팝업 '상세보기' → 기업상세 화면 진입용 딥링크
+                 예: dynamicconsent://org/kakaotalk?tab=RISK -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="dynamicconsent"
+                    android:host="org" />
             </intent-filter>
         </activity>
     </application>
