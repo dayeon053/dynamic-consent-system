@@ -49,3 +49,5 @@ keystore.properties
 # Claude Code 설정 (팀원 공유 불필요)
 # ===============================
 .claude/
+
+backend/consentradar/dynamic-consent-system/

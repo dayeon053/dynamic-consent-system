@@ -8,8 +8,8 @@
 
 | 역할 | 이름 | GitHub ID |
 |------|------|-----------|
-| 백엔드 | 노가현 | (GitHub ID 입력) |
-| 위험도 산출 & BE 지원 | 황다연 | (GitHub ID 입력) |
+| 백엔드A | 노가현 | (GitHub ID 입력) |
+| 백엔드B | 황다연 | (GitHub ID 입력) |
 | 프론트A | 김도영 | (GitHub ID 입력) |
 | 프론트B | 이재은 | (GitHub ID 입력) |
 
