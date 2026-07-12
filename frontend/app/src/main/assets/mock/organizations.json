@@ -3,8 +3,8 @@
     "id": "kakaotalk",
     "name": "카카오톡",
     "category": "SNS",
-    "riskScore": 31.5,
-    "riskGrade": "HIGH",
+    "riskScore": 43.5,
+    "riskGrade": "VERY_HIGH",
     "logoText": "톡",
     "logoColor": 4294894848
   },
