@@ -5,47 +5,47 @@ import org.springframework.stereotype.Component;
 @Component
 public class LlmClient {
 
-    // TODO: API 키 생기면 실제 호출로 교체
-    public String call(String policyText) {
-        // Mock 응답 - 합의된 JSON 포맷 그대로
+    /**
+     * 완성된 프롬프트를 받아 LLM을 호출하고 원시 응답 문자열을 반환한다.
+     * LlmRetryModule.LlmCaller 인터페이스와 호환되는 시그니처.
+     *
+     * TODO: API 키 생기면 실제 LLM 호출로 교체
+     */
+    public String callWithPrompt(String prompt) {
+        // Mock 응답 — LlmResponseParser가 기대하는 포맷
         return """
                 {
-                  "company": {
-                    "name": "카카오",
-                    "category": "메신저",
-                    "policy_url": "https://www.kakaocorp.com/page/detail/9610",
-                    "collected_at": "2026-07-04T09:00:00+09:00"
-                  },
-                  "consent_items": {
-                    "required": [
-                      {
-                        "item_id": "REQ-001",
-                        "title": "서비스 이용을 위한 필수 개인정보 수집",
-                        "description": "이름, 휴대폰번호, 이메일 등 회원가입 시 필요한 정보 수집",
-                        "raw_text_snippet": "회원은 서비스 이용을 위해 다음 정보를 제공해야 합니다..."
-                      }
-                    ],
-                    "optional": [
-                      {
-                        "item_id": "OPT-001",
-                        "title": "마케팅 정보 수신 동의",
-                        "description": "이벤트, 프로모션 등 광고성 정보 수신",
-                        "raw_text_snippet": "회사는 이벤트 정보를 SMS, 이메일로 발송할 수 있습니다..."
-                      }
-                    ]
-                  },
-                  "risk_variables": {
-                    "DS": 3,
-                    "ES": 3,
-                    "TF": 3,
-                    "PC": 1.5,
-                    "AI": 1.5
-                  },
-                  "llm_meta": {
-                    "model": "claude-sonnet-4-6",
-                    "prompt_version": "v1.0",
-                    "confidence": 0.85
-                  }
+                  "companyName": "카카오",
+                  "consentItems": [
+                    {
+                      "itemName": "서비스 이용을 위한 필수 개인정보 수집",
+                      "itemType": "REQUIRED",
+                      "ds": "HIGH",
+                      "es": "MEDIUM",
+                      "tf": "LONG",
+                      "pc": "COMPLIANT",
+                      "ai": "LOW_RISK",
+                      "dsReason": "이름, 휴대폰번호, 이메일 등 민감한 식별 정보를 수집함",
+                      "esReason": "서비스 내부 및 계열사 일부 공유",
+                      "tfReason": "회원 탈퇴 후에도 법적 의무 보관 기간(5년) 적용",
+                      "pcReason": "수집 목적이 약관에 명확히 기재되어 있음",
+                      "aiReason": "자동화 의사결정에 활용되지 않음"
+                    },
+                    {
+                      "itemName": "마케팅 정보 수신 동의",
+                      "itemType": "OPTIONAL",
+                      "ds": "MODERATE",
+                      "es": "HIGH",
+                      "tf": "LONG",
+                      "pc": "NON_COMPLIANT",
+                      "ai": "HIGH_RISK",
+                      "dsReason": "구매 이력, 관심사 등 행동 데이터 포함",
+                      "esReason": "제3자 광고 파트너사에 폭넓게 공유됨",
+                      "tfReason": "동의 철회 전까지 무기한 보관",
+                      "pcReason": "마케팅 활용 범위가 포괄적으로만 기재되어 GDPR Article 5 위반 소지",
+                      "aiReason": "개인화 광고 타겟팅 알고리즘에 활용됨"
+                    }
+                  ]
                 }
                 """;
     }

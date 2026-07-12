@@ -1,0 +1,20 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.dynamicconsent'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(23)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.18.3'
+}
