@@ -1,0 +1,158 @@
+{
+  "kakaotalk": {
+    "organization": {
+      "id": "kakaotalk",
+      "name": "카카오톡",
+      "category": "SNS",
+      "riskScore": 31.5,
+      "riskGrade": "HIGH",
+      "logoText": "톡",
+      "logoColor": 4294894848
+    },
+    "consentDetail": {
+      "optionalConsents": [
+        { "id": 1, "title": "프로필정보 추가 수집 동의", "enabled": false },
+        { "id": 2, "title": "이벤트 및 마케팅 활용 동의", "enabled": false },
+        { "id": 3, "title": "위치정보 수집 및 이용 동의", "enabled": false },
+        { "id": 4, "title": "맞춤형 광고를 위한 행태정보 수집 및 이용", "enabled": false }
+      ],
+      "requiredConsents": [
+        { "id": 1, "title": "카카오계정 이용약관" },
+        { "id": 2, "title": "개인정보 수집·이용 동의" },
+        { "id": 3, "title": "위치정보 이용약관 동의" }
+      ]
+    },
+    "riskAnalysis": {
+      "riskScore": 31.5,
+      "riskGrade": "HIGH",
+      "formula": "위험도 = 데이터민감도(4) + (노출범위(3) × 경과시간(3) × 목적명확성(1.5) × AI위험(1.5)) × 2 = 31.5",
+      "factors": [
+        { "label": "데이터민감도", "value": "4", "description": "메시지, 프로필, 연락처, 위치정보 등 풍부한 개인 데이터를 수집합니다." },
+        { "label": "노출범위", "value": "3", "description": "카카오 계열사, 브랜드 파트너, 광고주 등에 광범위하게 공유됩니다." },
+        { "label": "경과시간", "value": "3", "description": "위치정보, 행태정보 등이 장기간 보관됩니다." },
+        { "label": "목적명확성", "value": "1.5", "description": "마케팅, 광고 등 목적이 포괄적으로 표현됩니다." },
+        { "label": "AI위험", "value": "1.5", "description": "맞춤형 광고를 위한 자동 분석 및 타겟팅이 이루어집니다." }
+      ],
+      "withdrawalEffects": [
+        { "consentTitle": "프로필정보 추가 수집 동의", "pointsReduced": "2점 감소" },
+        { "consentTitle": "위치정보 수집 및 이용 동의", "pointsReduced": "4점 감소" },
+        { "consentTitle": "맞춤형 광고를 위한 행태정보 수집 및 이용", "pointsReduced": "5점 감소" }
+      ],
+      "maxEffect": {
+        "currentScore": "31.5점",
+        "currentGrade": "HIGH",
+        "afterScore": "3점",
+        "afterGrade": "VERY_LOW",
+        "totalReduction": "28.5점 감소"
+      }
+    },
+    "companyInfo": {
+      "serviceName": "카카오톡 Kakao Talk",
+      "legalName": "(주)카카오",
+      "privacyCertification": "ISMS-P, ISO 27001, ISO 27701",
+      "privacyPolicyUrl": "https://www.kakao.com/policy/privacy"
+    }
+  },
+  "toss": {
+    "organization": {
+      "id": "toss",
+      "name": "토스",
+      "category": "금융",
+      "riskScore": 32.0,
+      "riskGrade": "HIGH",
+      "logoText": "토스",
+      "logoColor": 4278215935
+    },
+    "consentDetail": {
+      "optionalConsents": [
+        { "id": 1, "title": "마케팅 정보 수신 동의", "enabled": false },
+        { "id": 2, "title": "제휴사/그룹사 서비스 안내", "enabled": false },
+        { "id": 3, "title": "신용정보 조회 및 활용 동의", "enabled": false }
+      ],
+      "requiredConsents": [
+        { "id": 1, "title": "서비스 이용약관" },
+        { "id": 2, "title": "개인정보 수집·이용 동의" },
+        { "id": 3, "title": "고유식별정보 처리 동의" }
+      ]
+    },
+    "riskAnalysis": {
+      "riskScore": 32.0,
+      "riskGrade": "HIGH",
+      "formula": "위험도 = 5 + (2 × 3 × 1.5 × 1.5) × 2 = 32.0",
+      "factors": [
+        { "label": "데이터민감도", "value": "5", "description": "금융 거래 정보, 신용 정보 등 고도로 민감한 고유식별정보입니다." },
+        { "label": "노출범위", "value": "2", "description": "토스 그룹사·제휴사에 제한적으로 공유됩니다." },
+        { "label": "경과시간", "value": "3", "description": "장기간 지속 수집됩니다." },
+        { "label": "목적명확성", "value": "1.5", "description": "\"금융서비스 안내\" 등 일부 포괄적 표현입니다." },
+        { "label": "AI위험", "value": "1.5", "description": "AI 신용평가, 맞춤형 금융상품 추천에 활용됩니다." }
+      ],
+      "withdrawalEffects": [
+        { "consentTitle": "신용정보 조회 및 활용", "pointsReduced": "14점 감소" },
+        { "consentTitle": "제휴사/그룹사 서비스 안내", "pointsReduced": "3점 감소" }
+      ],
+      "maxEffect": {
+        "currentScore": "32.0점",
+        "currentGrade": "HIGH",
+        "afterScore": "11점",
+        "afterGrade": "LOW",
+        "totalReduction": "21점 감소"
+      }
+    },
+    "companyInfo": {
+      "serviceName": "토스 Toss",
+      "legalName": "(주)비바리퍼블리카",
+      "privacyCertification": "ISMS-P, ISO 27001, ISO 27701, PCI DSS",
+      "privacyPolicyUrl": "https://toss.im/privacy-policy"
+    }
+  },
+  "netflix": {
+    "organization": {
+      "id": "netflix",
+      "name": "넷플릭스",
+      "category": "기타",
+      "riskScore": 21.0,
+      "riskGrade": "MEDIUM",
+      "logoText": "N",
+      "logoColor": 4293200148
+    },
+    "consentDetail": {
+      "optionalConsents": [
+        { "id": 1, "title": "마케팅 정보 수신 동의", "enabled": false },
+        { "id": 2, "title": "콘텐츠 취향 맞춤 정보 제공", "enabled": true }
+      ],
+      "requiredConsents": [
+        { "id": 1, "title": "이용 약관 동의" },
+        { "id": 2, "title": "개인정보 수집 및 이용 동의" },
+        { "id": 3, "title": "국외 이전 동의" }
+      ]
+    },
+    "riskAnalysis": {
+      "riskScore": 21.0,
+      "riskGrade": "MEDIUM",
+      "formula": "위험도 = 3 + (2 × 3 × 1.0 × 1.5) × 2 = 21.0",
+      "factors": [
+        { "label": "데이터민감도", "value": "3", "description": "시청 기록은 보호받아야 할 개인정보입니다." },
+        { "label": "노출범위", "value": "2", "description": "국외 이전되며, 제한적으로 공유됩니다." },
+        { "label": "경과시간", "value": "3", "description": "장기간 시청 기록이 보관됩니다." },
+        { "label": "목적명확성", "value": "1.0", "description": "\"콘텐츠 추천\", \"서비스 제공\" 목적이 명확합니다." },
+        { "label": "AI위험", "value": "1.5", "description": "콘텐츠 추천 알고리즘에 활용됩니다." }
+      ],
+      "withdrawalEffects": [
+        { "consentTitle": "콘텐츠 취향 맞춤 정보 제공", "pointsReduced": "9점 감소" }
+      ],
+      "maxEffect": {
+        "currentScore": "21.0점",
+        "currentGrade": "MEDIUM",
+        "afterScore": "3점",
+        "afterGrade": "VERY_LOW",
+        "totalReduction": "18점 감소"
+      }
+    },
+    "companyInfo": {
+      "serviceName": "넷플릭스 Netflix",
+      "legalName": "넷플릭스서비시스코리아 유한회사",
+      "privacyCertification": "ISO 27001",
+      "privacyPolicyUrl": "https://help.netflix.com/legal/privacy"
+    }
+  }
+}

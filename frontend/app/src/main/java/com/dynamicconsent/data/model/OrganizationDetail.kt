@@ -1,8 +1,11 @@
 package com.dynamicconsent.data.model
 
+import kotlinx.serialization.Serializable
+
 /**
  * 기업상세 화면 전체를 구성하는 데이터 묶음.
  */
+@Serializable
 data class OrganizationDetail(
     val organization: Organization,
     val consentDetail: ConsentDetail,

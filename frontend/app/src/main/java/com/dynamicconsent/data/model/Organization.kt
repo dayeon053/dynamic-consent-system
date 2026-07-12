@@ -1,8 +1,11 @@
 package com.dynamicconsent.data.model
 
+import kotlinx.serialization.Serializable
+
 /**
  * 위험기관리스트 카드 및 기업상세 헤더에 쓰이는 기관 요약 정보.
  */
+@Serializable
 data class Organization(
     val id: String,
     val name: String,
