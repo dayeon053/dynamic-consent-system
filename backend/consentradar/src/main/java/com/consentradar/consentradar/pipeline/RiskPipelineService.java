@@ -8,6 +8,7 @@ import com.consentradar.consentradar.entity.Company;
 import com.consentradar.consentradar.entity.ConsentItem;
 import com.consentradar.consentradar.entity.PolicySnapshot;
 import com.consentradar.consentradar.entity.RiskScore;
+import com.consentradar.consentradar.repository.ConsentItemRepository;
 import com.consentradar.consentradar.repository.PolicySnapshotRepository;
 import com.consentradar.consentradar.repository.RiskScoreRepository;
 import com.dynamicconsent.algorithm.RiskCalculator;
@@ -43,15 +44,18 @@ public class RiskPipelineService {
     private final PolicyCrawler policyCrawler;
     private final LlmClient llmClient;
     private final PolicySnapshotRepository policySnapshotRepository;
+    private final ConsentItemRepository consentItemRepository;
     private final RiskScoreRepository riskScoreRepository;
 
     public RiskPipelineService(PolicyCrawler policyCrawler,
                                LlmClient llmClient,
                                PolicySnapshotRepository policySnapshotRepository,
+                               ConsentItemRepository consentItemRepository,
                                RiskScoreRepository riskScoreRepository) {
         this.policyCrawler = policyCrawler;
         this.llmClient = llmClient;
         this.policySnapshotRepository = policySnapshotRepository;
+        this.consentItemRepository = consentItemRepository;
         this.riskScoreRepository = riskScoreRepository;
     }
 
@@ -99,12 +103,26 @@ public class RiskPipelineService {
         List<RiskScore> savedScores = new ArrayList<>();
 
         for (ConsentItemAnalysis item : llmResponse.getConsentItems()) {
-            RiskResult result = RiskCalculator.calculate(item.toRiskInput());
+            com.dynamicconsent.model.RiskInput riskInput = item.toRiskInput();
+            RiskResult result = RiskCalculator.calculate(riskInput);
 
             System.out.printf("[Pipeline]   항목: %-30s | 점수: %5.1f | 등급: %s(%s)%n",
                     item.getItemName(), result.getScore(),
                     result.getGrade().englishLabel, result.getGrade().koreanLabel);
 
+            // ConsentItem 저장
+            ConsentItem consentItem = new ConsentItem();
+            consentItem.setCompany(company);
+            consentItem.setItemName(item.getItemName());
+            consentItem.setItemType(ConsentItem.ItemType.valueOf(item.getItemType()));
+            consentItem.setDsScore(riskInput.getDataSensitivity().score);
+            consentItem.setEsScore(riskInput.getExposureScope().score);
+            consentItem.setTfScore(riskInput.getTimeFactor().score);
+            consentItem.setPcScore(riskInput.getPurposeClarity().score);
+            consentItem.setAiScore(riskInput.getAiRiskFactor().score);
+            consentItemRepository.save(consentItem);
+
+            // RiskScore 저장
             RiskScore riskScore = new RiskScore();
             riskScore.setUser(null); // 배치 크롤링 시 특정 유저 없음
             riskScore.setCompany(company);
