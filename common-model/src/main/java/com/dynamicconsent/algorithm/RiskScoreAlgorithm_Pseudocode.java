@@ -128,7 +128,7 @@ import com.dynamicconsent.model.RiskResult;
  *  DS=1, ES=2, TF=2, PC=1.0, AI=1.0           →   9.0점  | LOW
  *  DS=3, ES=2, TF=2, PC=1.0, AI=1.0           →  11.0점  | LOW
  *  DS=3, ES=2, TF=2, PC=1.5, AI=1.0           →  15.0점  | MEDIUM
- *  DS=3, ES=3, TF=3, PC=1.5, AI=1.0           →  30.5점  | HIGH    (카카오 AI 철회 시)
+ *  DS=3, ES=3, TF=3, PC=1.5, AI=1.0           →  30.0점  | HIGH    (카카오 AI 철회 시)
  *  DS=3, ES=3, TF=3, PC=1.5, AI=1.5           →  43.5점  | VERY_HIGH (카카오 기본)
  *  DS=5, ES=3, TF=3, PC=1.5, AI=1.5           →  45.5점  | VERY_HIGH (최댓값)
  *
