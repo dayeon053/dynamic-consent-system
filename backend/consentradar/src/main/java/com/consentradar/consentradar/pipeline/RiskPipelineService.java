@@ -73,6 +73,15 @@ public class RiskPipelineService {
         CrawledPolicyDto crawled = policyCrawler.crawl(target);
         System.out.println("[Pipeline] 크롤링 완료. 텍스트 길이: " + crawled.getRawText().length() + "자");
 
+        return runWithCrawledPolicy(target, company, crawled);
+    }
+
+    /**
+     * 이미 수집된(또는 목업) 크롤링 결과를 받아 파싱 → 위험도 산출 → DB 저장을 수행한다.
+     * 실제 네트워크 크롤링 없이 파이프라인을 검증하고 싶을 때 사용한다.
+     */
+    @Transactional
+    public List<RiskScore> runWithCrawledPolicy(CrawlTarget target, Company company, CrawledPolicyDto crawled) {
         // 2. PolicySnapshot 저장
         PolicySnapshot snapshot = new PolicySnapshot();
         snapshot.setCompany(company);
@@ -101,9 +110,11 @@ public class RiskPipelineService {
         // 5. 동의항목별 위험도 산출 + RiskScore 저장
         System.out.println("[Pipeline] 5단계: 위험도 산출 시작");
         List<RiskScore> savedScores = new ArrayList<>();
+        List<com.dynamicconsent.model.RiskInput> riskInputs = new ArrayList<>();
 
         for (ConsentItemAnalysis item : llmResponse.getConsentItems()) {
             com.dynamicconsent.model.RiskInput riskInput = item.toRiskInput();
+            riskInputs.add(riskInput);
             RiskResult result = RiskCalculator.calculate(riskInput);
 
             System.out.printf("[Pipeline]   항목: %-30s | 점수: %5.1f | 등급: %s(%s)%n",
@@ -133,7 +144,24 @@ public class RiskPipelineService {
             savedScores.add(riskScoreRepository.save(riskScore));
         }
 
-        System.out.println("[Pipeline] 완료. 저장된 RiskScore: " + savedScores.size() + "건");
+        System.out.println("[Pipeline] 항목별 RiskScore 저장 완료: " + savedScores.size() + "건");
+
+        // 6. 기업 대표 위험도 산출(최고 점수 기준) + RiskScore 저장
+        System.out.println("[Pipeline] 6단계: 기업 대표 위험도 산출 시작");
+        RiskResult companyResult = RiskCalculator.calculateMax(riskInputs);
+
+        RiskScore companyRiskScore = new RiskScore();
+        companyRiskScore.setUser(null);
+        companyRiskScore.setCompany(company);
+        companyRiskScore.setTotalScore(BigDecimal.valueOf(companyResult.getScore()));
+        companyRiskScore.setGrade(RiskScore.Grade.valueOf(companyResult.getGrade().name()));
+        companyRiskScore.setScoredAt(LocalDate.now());
+        savedScores.add(riskScoreRepository.save(companyRiskScore));
+
+        System.out.printf("[Pipeline]   기업 대표 점수: %5.1f | 등급: %s(%s)%n",
+                companyResult.getScore(), companyResult.getGrade().englishLabel, companyResult.getGrade().koreanLabel);
+
+        System.out.println("[Pipeline] 완료. 저장된 RiskScore 총 " + savedScores.size() + "건 (항목별 + 기업 대표 1건)");
         return savedScores;
     }
 }
