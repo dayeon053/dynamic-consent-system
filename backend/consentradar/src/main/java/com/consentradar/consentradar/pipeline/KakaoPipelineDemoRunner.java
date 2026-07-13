@@ -14,9 +14,9 @@ import java.util.List;
 /**
  * 임시 실행용 러너 — 카카오 1개 기업 기준으로
  * 크롤링(목업) → 파싱 → 위험도 산출 → DB 저장 파이프라인을 콘솔에서 눈으로 확인하기 위한 용도.
- * 확인이 끝나면 삭제하거나 @Component를 주석 처리해도 된다.
+ * 검증 완료되어 자동 실행은 꺼둔 상태. 다시 확인하려면 아래 @Component 주석을 해제하면 된다.
  */
-@Component
+// @Component
 public class KakaoPipelineDemoRunner implements CommandLineRunner {
 
     private static final String MOCK_POLICY_TEXT = """
