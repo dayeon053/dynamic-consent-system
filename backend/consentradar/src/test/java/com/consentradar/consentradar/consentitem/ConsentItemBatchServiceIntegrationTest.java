@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
 
@@ -104,6 +105,27 @@ class ConsentItemBatchServiceIntegrationTest {
 
         long countInDb = consentItemRepository.countByCompany_CompanyId(nonExistentCompanyId);
         assertEquals(0, countInDb, "존재하지 않는 companyId면 아무것도 저장되면 안 된다");
+    }
+
+    @Test
+    void saveAll_rollsBackAlreadyInsertedItems_whenLaterItemViolatesDbConstraint() {
+        // 애플리케이션 레벨 검증(validateScoreRange)은 itemName의 null 여부를 확인하지 않으므로
+        // 이 DTO는 검증을 통과하고 실제 INSERT 시점에 DB의 NOT NULL 제약(item_name)을 위반한다.
+        // ConsentItem은 GenerationType.IDENTITY라서 saveAll() 안에서 항목마다 즉시 INSERT가
+        // 실행되므로, 1·2번째 항목은 이미 INSERT가 나간 뒤 3번째에서 실패 -> 트랜잭션 전체 롤백을
+        // 진짜로 재현한다.
+        List<ConsentItemDto> dtos = List.of(
+                new ConsentItemDto(ConsentItem.ItemType.REQUIRED, "정상 항목1", 5, 3, 2, 1.0, 1.0),
+                new ConsentItemDto(ConsentItem.ItemType.OPTIONAL, "정상 항목2", 8, 6, 3, 1.5, 1.5),
+                new ConsentItemDto(ConsentItem.ItemType.OPTIONAL, null, 4, 3, 2, 1.0, 1.0) // itemName=null -> NOT NULL 위반
+        );
+
+        assertThrows(DataIntegrityViolationException.class,
+                () -> consentItemBatchService.saveAll(testCompanyId, dtos));
+
+        long countInDb = consentItemRepository.countByCompany_CompanyId(testCompanyId);
+        assertEquals(0, countInDb,
+                "1·2번째 항목이 이미 INSERT된 뒤 3번째에서 DB 제약 위반이 나도 트랜잭션 전체가 롤백되어 0건이어야 한다");
     }
 
     private long findNonExistentCompanyId() {
