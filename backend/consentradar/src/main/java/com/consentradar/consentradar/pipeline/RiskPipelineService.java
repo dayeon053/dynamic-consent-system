@@ -73,6 +73,15 @@ public class RiskPipelineService {
         CrawledPolicyDto crawled = policyCrawler.crawl(target);
         System.out.println("[Pipeline] 크롤링 완료. 텍스트 길이: " + crawled.getRawText().length() + "자");
 
+        return runWithCrawledPolicy(target, company, crawled);
+    }
+
+    /**
+     * 이미 수집된(또는 목업) 크롤링 결과를 받아 파싱 → 위험도 산출 → DB 저장을 수행한다.
+     * 실제 네트워크 크롤링 없이 파이프라인을 검증하고 싶을 때 사용한다.
+     */
+    @Transactional
+    public List<RiskScore> runWithCrawledPolicy(CrawlTarget target, Company company, CrawledPolicyDto crawled) {
         // 2. PolicySnapshot 저장
         PolicySnapshot snapshot = new PolicySnapshot();
         snapshot.setCompany(company);

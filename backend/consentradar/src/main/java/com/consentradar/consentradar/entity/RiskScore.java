@@ -1,4 +1,4 @@
-﻿package com.consentradar.consentradar.entity;
+package com.consentradar.consentradar.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
