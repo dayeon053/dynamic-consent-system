@@ -4,7 +4,6 @@ import com.dynamicconsent.data.model.Organization
 import com.dynamicconsent.data.model.OrganizationDetail
 import com.dynamicconsent.data.remote.CompanyMapper
 import com.dynamicconsent.data.remote.ConsentRadarApi
-import com.dynamicconsent.data.remote.dto.ConsentPatchRequest
 import com.dynamicconsent.data.remote.dto.ConsentPatchResponse
 
 /**
@@ -26,13 +25,12 @@ class ApiOrganizationRepository(
 
     override suspend fun getOrganizationDetail(id: String): OrganizationDetail? = loadAll()[id]
 
-    /** 스위치 토글을 서버에 저장하고, 서버가 재산출한 위험도를 돌려받는다. */
-    suspend fun patchConsent(consentItemId: Int, enabled: Boolean): ConsentPatchResponse =
-        api.patchConsent(
-            userId = userId,
-            consentItemId = consentItemId.toLong(),
-            body = ConsentPatchRequest(isChecked = enabled),
-        )
+    /**
+     * 스위치 토글을 서버에 반영하고, 서버가 재산출한 위험도를 돌려받는다.
+     * 서버는 토글(반전) 방식이므로 응답의 checked를 신뢰 기준으로 화면 상태를 보정할 것.
+     */
+    suspend fun patchConsent(consentItemId: Int): ConsentPatchResponse =
+        api.patchConsent(userId = userId, consentItemId = consentItemId.toLong())
 
     /** 다음 조회 때 서버에서 다시 받아오도록 캐시를 비운다. */
     fun invalidateCache() {

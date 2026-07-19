@@ -11,7 +11,8 @@ import org.junit.Test
 
 class ConsentSyncManagerTest {
 
-    private fun response(score: Double) = ConsentPatchResponse(newRiskScore = score, grade = RiskGrade.MEDIUM)
+    private fun response(score: Double) =
+        ConsentPatchResponse(consentItemId = 1, checked = false, newRiskScore = score, newRiskGrade = RiskGrade.MEDIUM)
 
     @Test
     fun `같은 항목을 연타하면 마지막 상태 하나만 전송된다`() = runTest {

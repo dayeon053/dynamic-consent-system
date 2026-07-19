@@ -31,7 +31,7 @@ object CompanyMapper {
                 ConsentToggleItem(
                     id = item.consentItemId.toInt(),
                     title = item.itemName,
-                    enabled = item.isChecked,
+                    enabled = item.checked,
                     variableImpact = RiskVariables(
                         ds = item.dsScore,
                         es = item.esScore,
@@ -51,7 +51,7 @@ object CompanyMapper {
                 name = response.companyName,
                 category = "기타",
                 riskScore = response.riskScore ?: RiskCalculator.MIN_SCORE,
-                riskGrade = response.grade ?: RiskGrade.VERY_LOW,
+                riskGrade = response.riskGrade ?: RiskGrade.VERY_LOW,
                 logoText = response.companyName.take(1),
                 logoColor = DEFAULT_LOGO_COLOR,
             ),
