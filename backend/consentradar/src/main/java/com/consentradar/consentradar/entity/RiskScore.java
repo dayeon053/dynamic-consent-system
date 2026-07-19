@@ -1,8 +1,9 @@
-﻿package com.consentradar.consentradar.entity;
+package com.consentradar.consentradar.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -10,6 +11,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "risk_score")
 @Getter
+@Setter
 @NoArgsConstructor
 public class RiskScore {
 
@@ -18,7 +20,7 @@ public class RiskScore {
     private Long riskScoreId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id", nullable = true)
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)

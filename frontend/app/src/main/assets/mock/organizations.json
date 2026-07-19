@@ -1,0 +1,29 @@
+[
+  {
+    "id": "kakaotalk",
+    "name": "카카오톡",
+    "category": "SNS",
+    "riskScore": 43.5,
+    "riskGrade": "VERY_HIGH",
+    "logoText": "톡",
+    "logoColor": 4294894848
+  },
+  {
+    "id": "toss",
+    "name": "토스",
+    "category": "금융",
+    "riskScore": 32.0,
+    "riskGrade": "HIGH",
+    "logoText": "토스",
+    "logoColor": 4278215935
+  },
+  {
+    "id": "netflix",
+    "name": "넷플릭스",
+    "category": "기타",
+    "riskScore": 21.0,
+    "riskGrade": "MEDIUM",
+    "logoText": "N",
+    "logoColor": 4293200148
+  }
+]

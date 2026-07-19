@@ -1,14 +1,16 @@
-﻿package com.consentradar.consentradar.entity;
+package com.consentradar.consentradar.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
 @Table(name = "consent_item")
 @Getter
+@Setter
 @NoArgsConstructor
 public class ConsentItem {
 
