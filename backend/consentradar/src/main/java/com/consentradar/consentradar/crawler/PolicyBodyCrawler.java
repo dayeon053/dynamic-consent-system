@@ -8,10 +8,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.regex.Pattern;
 
 /**
  * 기업 privacy_url 페이지를 Jsoup으로 크롤링해 광고/네비게이션 등 잡음을 제거한
  * 본문 텍스트만 추출한다. 요청 실패 시 최대 3회, 1s -> 2s -> 4s backoff로 재시도한다.
+ * SPA 등으로 인해 HTTP 200이 와도 실제 콘텐츠가 렌더링되지 않은 경우(예: zero-width
+ * 문자만 있는 빈 본문)를 걸러내기 위해 정제된 텍스트의 최소 길이도 검증한다.
  */
 @Component
 public class PolicyBodyCrawler {
@@ -28,9 +31,22 @@ public class PolicyBodyCrawler {
             ".ad", ".ads", ".advertisement", ".banner", ".gnb", ".lnb"
     };
 
+    private static final int MIN_MEANINGFUL_TEXT_LENGTH = 100;
+    private static final Pattern ZERO_WIDTH_CHARS = Pattern.compile("[\\u200B\\u200C\\u200D\\uFEFF]");
+
     public String fetchCleanText(String url) {
         Document doc = fetchWithRetry(url);
-        return cleanText(doc);
+        String text = cleanText(doc);
+
+        int meaningfulLength = ZERO_WIDTH_CHARS.matcher(text).replaceAll("").trim().length();
+        if (meaningfulLength < MIN_MEANINGFUL_TEXT_LENGTH) {
+            throw new PolicyCrawlException(
+                    url + " 크롤링 결과 텍스트가 너무 짧습니다 (" + meaningfulLength + "자, 최소 "
+                            + MIN_MEANINGFUL_TEXT_LENGTH + "자 필요). SPA 등으로 실제 콘텐츠가 렌더링되지 않았을 수 있습니다.",
+                    null);
+        }
+
+        return text;
     }
 
     Document fetchWithRetry(String url) {
