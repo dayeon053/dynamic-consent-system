@@ -26,8 +26,8 @@ public class PolicySnapshot {
     @Column(nullable = false)
     private boolean isChanged = false;    // 전일 대비 변경 여부 플래그
 
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime crawledAt;      // 수집 일시
+    @Column(nullable = false)
+    private LocalDateTime crawledAt;      // 수집 일시 (변경 없음 감지 시 최신 레코드의 이 값만 갱신됨)
 
     @PrePersist
     public void prePersist() {
