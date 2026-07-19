@@ -101,9 +101,11 @@ public class RiskPipelineService {
         // 5. 동의항목별 위험도 산출 + RiskScore 저장
         System.out.println("[Pipeline] 5단계: 위험도 산출 시작");
         List<RiskScore> savedScores = new ArrayList<>();
+        List<com.dynamicconsent.model.RiskInput> riskInputs = new ArrayList<>();
 
         for (ConsentItemAnalysis item : llmResponse.getConsentItems()) {
             com.dynamicconsent.model.RiskInput riskInput = item.toRiskInput();
+            riskInputs.add(riskInput);
             RiskResult result = RiskCalculator.calculate(riskInput);
 
             System.out.printf("[Pipeline]   항목: %-30s | 점수: %5.1f | 등급: %s(%s)%n",
@@ -122,18 +124,35 @@ public class RiskPipelineService {
             consentItem.setAiScore(riskInput.getAiRiskFactor().score);
             consentItemRepository.save(consentItem);
 
-            // RiskScore 저장
+            // 항목별 RiskScore 저장 (isRepresentative=false 기본값)
             RiskScore riskScore = new RiskScore();
-            riskScore.setUser(null); // 배치 크롤링 시 특정 유저 없음
+            riskScore.setUser(null);
             riskScore.setCompany(company);
             riskScore.setTotalScore(BigDecimal.valueOf(result.getScore()));
             riskScore.setGrade(RiskScore.Grade.valueOf(result.getGrade().name()));
             riskScore.setScoredAt(LocalDate.now());
-
+            riskScore.setRepresentative(false);
             savedScores.add(riskScoreRepository.save(riskScore));
         }
 
-        System.out.println("[Pipeline] 완료. 저장된 RiskScore: " + savedScores.size() + "건");
+        System.out.println("[Pipeline] 항목별 RiskScore 저장 완료: " + savedScores.size() + "건");
+
+        // 6. 기업 대표 위험도 산출(최고 점수) + RiskScore 저장 (isRepresentative=true)
+        System.out.println("[Pipeline] 6단계: 기업 대표 위험도 산출 시작");
+        RiskResult companyResult = RiskCalculator.calculateMax(riskInputs);
+
+        RiskScore companyRiskScore = new RiskScore();
+        companyRiskScore.setUser(null);
+        companyRiskScore.setCompany(company);
+        companyRiskScore.setTotalScore(BigDecimal.valueOf(companyResult.getScore()));
+        companyRiskScore.setGrade(RiskScore.Grade.valueOf(companyResult.getGrade().name()));
+        companyRiskScore.setScoredAt(LocalDate.now());
+        companyRiskScore.setRepresentative(true);
+        savedScores.add(riskScoreRepository.save(companyRiskScore));
+
+        System.out.printf("[Pipeline]   기업 대표 점수: %5.1f | 등급: %s(%s)%n",
+                companyResult.getScore(), companyResult.getGrade().englishLabel, companyResult.getGrade().koreanLabel);
+        System.out.println("[Pipeline] 완료. 저장된 RiskScore 총 " + savedScores.size() + "건 (항목별 + 기업 대표 1건)");
         return savedScores;
     }
 }
