@@ -1,6 +1,7 @@
 package com.consentradar.consentradar.api;
 
 import com.consentradar.consentradar.api.dto.CompanyRiskResponse;
+import com.consentradar.consentradar.api.dto.ConsentItemResponse;
 import com.consentradar.consentradar.api.dto.ConsentPatchResponse;
 import com.consentradar.consentradar.entity.*;
 import com.consentradar.consentradar.repository.*;
@@ -130,6 +131,28 @@ public class ConsentApiService {
     }
 
     /**
+     * GET /companies/{companyId}/consent-items?userId=
+     * 기업의 필수+선택 동의 항목 전체를 5대 변수 값과 함께 반환한다. REQUIRED는 항상
+     * checked=true, OPTIONAL은 이 사용자의 실제 체크 여부를 반영한다.
+     *
+     * 동의 세부사항 탭(4-5)이 지금까지 프론트 mock 데이터로만 구현돼 있던 것을 실제
+     * 데이터로 연동하기 위해 추가했다. 응답의 consentItemId를 그대로 PATCH
+     * /users/{userId}/consents/{consentItemId} 호출에 사용하면 된다.
+     */
+    @Transactional(readOnly = true)
+    public List<ConsentItemResponse> getConsentItems(Long userId, Long companyId) {
+        List<ConsentItem> items = consentItemRepository.findByCompany_CompanyId(companyId);
+        Set<Long> checkedOptionalItemIds = findCheckedOptionalItemIds(userId, companyId);
+
+        return items.stream()
+                .map(item -> new ConsentItemResponse(
+                        item,
+                        item.getItemType() == ConsentItem.ItemType.REQUIRED
+                                || checkedOptionalItemIds.contains(item.getConsentItemId())))
+                .collect(Collectors.toList());
+    }
+
+    /**
      * 필수동의 전체 + 이 사용자가 isChecked=true로 체크한 선택동의만으로 위험도를 계산한다.
      * (F2: "필수동의 + 사용자가 실제 체크한 선택동의를 기준으로 산출", 워스트 케이스 아님)
      *
@@ -144,12 +167,7 @@ public class ConsentApiService {
             return null;
         }
 
-        Set<Long> checkedOptionalItemIds = userConsentCheckRepository
-                .findAllByUser_UserIdAndConsentItem_Company_CompanyId(userId, companyId)
-                .stream()
-                .filter(UserConsentCheck::isChecked)
-                .map(c -> c.getConsentItem().getConsentItemId())
-                .collect(Collectors.toSet());
+        Set<Long> checkedOptionalItemIds = findCheckedOptionalItemIds(userId, companyId);
 
         List<RiskInput> personalInputs = allItems.stream()
                 .filter(item -> item.getItemType() == ConsentItem.ItemType.REQUIRED
@@ -159,6 +177,15 @@ public class ConsentApiService {
 
         // 필수동의조차 없는 비정상 데이터인 경우를 대비한 방어 코드
         return personalInputs.isEmpty() ? null : RiskCalculator.calculateMax(personalInputs);
+    }
+
+    private Set<Long> findCheckedOptionalItemIds(Long userId, Long companyId) {
+        return userConsentCheckRepository
+                .findAllByUser_UserIdAndConsentItem_Company_CompanyId(userId, companyId)
+                .stream()
+                .filter(UserConsentCheck::isChecked)
+                .map(c -> c.getConsentItem().getConsentItemId())
+                .collect(Collectors.toSet());
     }
 
     private RiskInput toRiskInput(ConsentItem item) {
