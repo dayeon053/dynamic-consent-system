@@ -3,7 +3,7 @@ package com.consentradar.consentradar.pipeline;
 import com.consentradar.consentradar.crawler.CrawlTarget;
 import com.consentradar.consentradar.crawler.CrawledPolicyDto;
 import com.consentradar.consentradar.crawler.LlmClient;
-import com.consentradar.consentradar.crawler.PolicyCrawler;
+import com.consentradar.consentradar.crawler.PolicyBodyCrawler;
 import com.consentradar.consentradar.entity.Company;
 import com.consentradar.consentradar.entity.ConsentItem;
 import com.consentradar.consentradar.entity.PolicySnapshot;
@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,7 +32,7 @@ import java.util.List;
  * 전체 위험도 산출 파이프라인 오케스트레이터
  *
  * [파이프라인 흐름]
- * PolicyCrawler (크롤링)
+ * PolicyBodyCrawler (크롤링)
  *   → LlmPromptTemplate (프롬프트 생성)
  *   → LlmRetryModule + LlmClient (LLM 호출 + 재시도)
  *   → LlmResponseParser (파싱 + 검증) — LlmRetryModule 내부에서 자동 수행
@@ -41,18 +42,18 @@ import java.util.List;
 @Service
 public class RiskPipelineService {
 
-    private final PolicyCrawler policyCrawler;
+    private final PolicyBodyCrawler policyBodyCrawler;
     private final LlmClient llmClient;
     private final PolicySnapshotRepository policySnapshotRepository;
     private final ConsentItemRepository consentItemRepository;
     private final RiskScoreRepository riskScoreRepository;
 
-    public RiskPipelineService(PolicyCrawler policyCrawler,
+    public RiskPipelineService(PolicyBodyCrawler policyBodyCrawler,
                                LlmClient llmClient,
                                PolicySnapshotRepository policySnapshotRepository,
                                ConsentItemRepository consentItemRepository,
                                RiskScoreRepository riskScoreRepository) {
-        this.policyCrawler = policyCrawler;
+        this.policyBodyCrawler = policyBodyCrawler;
         this.llmClient = llmClient;
         this.policySnapshotRepository = policySnapshotRepository;
         this.consentItemRepository = consentItemRepository;
@@ -61,8 +62,10 @@ public class RiskPipelineService {
 
     /**
      * 크롤링부터 위험도 DB 저장까지 전체 파이프라인을 실행한다.
+     * 크롤링은 재시도(3회, 1s→2s→4s backoff)와 silent-failure 방지 로직을 갖춘
+     * {@link PolicyBodyCrawler}를 사용한다.
      *
-     * @param target  크롤링 대상 (URL, CSS 셀렉터 등)
+     * @param target  크롤링 대상 (기업명, URL)
      * @param company 기업 엔티티 (이미 DB에 저장된 상태여야 함)
      * @return 저장된 RiskScore 목록
      */
@@ -70,15 +73,17 @@ public class RiskPipelineService {
     public List<RiskScore> run(CrawlTarget target, Company company) {
         // 1. 크롤링
         System.out.println("[Pipeline] 1단계: 크롤링 시작 — " + target.getCompanyName());
-        CrawledPolicyDto crawled = policyCrawler.crawl(target);
+        String rawText = policyBodyCrawler.fetchCleanText(target.getPolicyUrl());
+        CrawledPolicyDto crawled = new CrawledPolicyDto(
+                target.getCompanyName(), target.getPolicyUrl(), rawText, OffsetDateTime.now());
         System.out.println("[Pipeline] 크롤링 완료. 텍스트 길이: " + crawled.getRawText().length() + "자");
 
         return runWithCrawledPolicy(target, company, crawled);
     }
 
     /**
-     * 이미 수집된(또는 목업) 크롤링 결과를 받아 파싱 → 위험도 산출 → DB 저장을 수행한다.
-     * 실제 네트워크 크롤링 없이 파이프라인을 검증하고 싶을 때 사용한다.
+     * 이미 수집된(또는 목업) 크롤링 결과를 받아 PolicySnapshot 저장 + 파싱 → 위험도 산출 →
+     * DB 저장을 수행한다. 실제 네트워크 크롤링 없이 파이프라인을 검증하고 싶을 때 사용한다.
      */
     @Transactional
     public List<RiskScore> runWithCrawledPolicy(CrawlTarget target, Company company, CrawledPolicyDto crawled) {
@@ -91,9 +96,23 @@ public class RiskPipelineService {
         policySnapshotRepository.save(snapshot);
         System.out.println("[Pipeline] 2단계: PolicySnapshot 저장 완료");
 
+        return analyzeAndSaveRisk(company, crawled.getRawText());
+    }
+
+    /**
+     * PolicySnapshot 저장 없이 LLM 파싱 → 위험도 산출 → ConsentItem/RiskScore 저장만 수행한다.
+     * 스냅샷 저장(변경 여부 판단 포함)을 이미 {@link com.consentradar.consentradar.crawler.PolicyChangeDetectionService}가
+     * 담당하는 흐름(스케줄러/관리자 수동 트리거)에서, 스냅샷을 중복 저장하지 않고 이 메서드만
+     * 호출하기 위해 분리했다.
+     *
+     * @param company 기업 엔티티 (이미 DB에 저장된 상태여야 함)
+     * @param rawText 크롤링된(또는 목업) 약관 원문 텍스트
+     * @return 저장된 RiskScore 목록 (항목별 N건 + 기업 대표 1건)
+     */
+    @Transactional
+    public List<RiskScore> analyzeAndSaveRisk(Company company, String rawText) {
         // 3. LLM 프롬프트 생성
-        String prompt = LlmPromptTemplate.buildAnalysisPrompt(
-                target.getCompanyName(), crawled.getRawText());
+        String prompt = LlmPromptTemplate.buildAnalysisPrompt(company.getCompanyName(), rawText);
         System.out.println("[Pipeline] 3단계: LLM 프롬프트 생성 완료");
 
         // 4. LLM 호출 + 파싱 (실패 시 자동 재시도)
