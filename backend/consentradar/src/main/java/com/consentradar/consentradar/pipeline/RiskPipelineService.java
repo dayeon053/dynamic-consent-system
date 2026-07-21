@@ -140,6 +140,7 @@ public class RiskPipelineService {
             riskScore.setTotalScore(BigDecimal.valueOf(result.getScore()));
             riskScore.setGrade(RiskScore.Grade.valueOf(result.getGrade().name()));
             riskScore.setScoredAt(LocalDate.now());
+            riskScore.setRepresentative(false);
 
             savedScores.add(riskScoreRepository.save(riskScore));
         }
@@ -156,6 +157,7 @@ public class RiskPipelineService {
         companyRiskScore.setTotalScore(BigDecimal.valueOf(companyResult.getScore()));
         companyRiskScore.setGrade(RiskScore.Grade.valueOf(companyResult.getGrade().name()));
         companyRiskScore.setScoredAt(LocalDate.now());
+        companyRiskScore.setRepresentative(true);
         savedScores.add(riskScoreRepository.save(companyRiskScore));
 
         System.out.printf("[Pipeline]   기업 대표 점수: %5.1f | 등급: %s(%s)%n",
