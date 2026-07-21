@@ -217,8 +217,17 @@ private fun RequiredConsentRow(item: ConsentRequiredItem) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(item.title, style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
+        Text(item.title, style = MaterialTheme.typography.bodyMedium, color = TextPrimary, modifier = Modifier.weight(1f))
+        // 필수 동의는 철회 불가 — 항상 ON 고정 표시
+        Switch(
+            checked = true,
+            onCheckedChange = null,
+            enabled = false,
+            colors = SwitchDefaults.colors(disabledCheckedTrackColor = BrandGreen.copy(alpha = 0.45f)),
+        )
     }
 }
 
