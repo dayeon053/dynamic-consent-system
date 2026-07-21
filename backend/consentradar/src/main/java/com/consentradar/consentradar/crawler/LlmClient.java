@@ -2,6 +2,7 @@ package com.consentradar.consentradar.crawler;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +24,7 @@ public class LlmClient {
     private final String baseUrl;
     private final boolean enabled;
 
+    @Autowired
     public LlmClient(@Value("${llm.api-key:}") String apiKey,
                      @Value("${llm.model:gpt-4o-mini}") String model,
                      @Value("${llm.base-url:https://api.openai.com/v1/chat/completions}") String baseUrl,
