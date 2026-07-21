@@ -41,6 +41,10 @@ dynamic-consent-system/
 
 ---
 
+## 📌 Sprint 03 계획
+- 스프린트 03 작업 범위와 담당자별 체크리스트는 [docs/sprint03_plan.md](docs/sprint03_plan.md) 에 정리해두었습니다.
+- PR 리뷰 반영 항목(엔티티 setter, LLM 파이프라인 설정, 위험도 테스트 보강)도 함께 반영해 두었습니다.
+
 ## 🌿 브랜치 전략
 
 ```
