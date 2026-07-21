@@ -141,6 +141,7 @@ public class RiskPipelineService {
             riskScore.setGrade(RiskScore.Grade.valueOf(result.getGrade().name()));
             riskScore.setScoredAt(LocalDate.now());
             riskScore.setRepresentative(false);
+
             savedScores.add(riskScoreRepository.save(riskScore));
         }
 
