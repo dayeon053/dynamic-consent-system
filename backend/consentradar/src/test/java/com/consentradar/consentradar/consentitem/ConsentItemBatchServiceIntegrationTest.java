@@ -6,6 +6,7 @@ import com.consentradar.consentradar.repository.CompanyRepository;
 import com.consentradar.consentradar.repository.ConsentItemRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,7 +21,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * ConsentItemBatchService.saveAll()의 트랜잭션 롤백을 실제 로컬 MySQL(consentradar DB)에
  * 연결해 검증하는 통합 테스트. 테스트 전용 Company를 만들어 사용하고, 각 테스트가 끝나면
  * 해당 Company와 하위 ConsentItem을 정리해 다른 테스트/기존 데이터에 영향을 주지 않는다.
+ * H2로 대체하지 않고 의도적으로 실 MySQL에 연결하므로, 로컬에 MySQL(consentradar DB)이
+ * 떠 있어야 통과한다. 기본 `./gradlew test`에서는 제외되고 `./gradlew integrationTest`로만 실행된다.
  */
+@Tag("integration")
 @SpringBootTest
 class ConsentItemBatchServiceIntegrationTest {
 
