@@ -37,6 +37,9 @@ public class RiskScore {
     @Column(nullable = false)
     private LocalDate scoredAt;
 
+    @Column(name = "is_representative", nullable = false)
+    private boolean isRepresentative = false; // false = 항목별 점수, true = 기업 대표 점수
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
 

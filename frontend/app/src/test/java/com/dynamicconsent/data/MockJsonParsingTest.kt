@@ -83,4 +83,18 @@ class MockJsonParsingTest {
             assertEquals("$id: JSON 등급과 수식 산출 등급 불일치", detail.organization.riskGrade, RiskCalculator.classifyGrade(score))
         }
     }
+
+    @Test
+    fun `모든 기관에 제3자 제공 정보가 포함돼 있다`() {
+        val details: Map<String, OrganizationDetail> =
+            json.decodeFromString(asset("organization_details.json"))
+
+        details.forEach { (id, detail) ->
+            assertTrue("$id: thirdPartyProviders 비어 있음", detail.thirdPartyProviders.isNotEmpty())
+            detail.thirdPartyProviders.forEach { provider ->
+                assertTrue("$id: 제공처 이름 누락", provider.name.isNotBlank())
+                assertTrue("$id: 제공 목적 누락", provider.purpose.isNotBlank())
+            }
+        }
+    }
 }

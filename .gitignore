@@ -50,4 +50,7 @@ keystore.properties
 # ===============================
 .claude/
 
+# 기획/계획 문서 로컬 사본 (Notion이 원본, 레포에는 올리지 않음)
+docs/planning/
+
 backend/consentradar/dynamic-consent-system/

@@ -100,7 +100,27 @@
       "legalName": "(주)카카오",
       "privacyCertification": "ISMS-P, ISO 27001, ISO 27701",
       "privacyPolicyUrl": "https://www.kakao.com/policy/privacy"
-    }
+    },
+    "thirdPartyProviders": [
+      {
+        "name": "(주)카카오모빌리티",
+        "purpose": "서비스 연동 및 이동 서비스 제공",
+        "sharedItems": "카카오계정 식별자, 프로필 정보",
+        "retentionPeriod": "제공 목적 달성 시까지"
+      },
+      {
+        "name": "광고 파트너 (광고주·광고대행사)",
+        "purpose": "맞춤형 광고 제공 및 성과 측정",
+        "sharedItems": "행태정보, 광고 식별자",
+        "retentionPeriod": "수집일로부터 2년"
+      },
+      {
+        "name": "카카오페이 제휴 금융기관",
+        "purpose": "결제 및 송금 처리",
+        "sharedItems": "이름, 연락처, 거래정보",
+        "retentionPeriod": "관련 법령에 따른 보존 기간"
+      }
+    ]
   },
   "toss": {
     "organization": {
@@ -175,7 +195,21 @@
       "legalName": "(주)비바리퍼블리카",
       "privacyCertification": "ISMS-P, ISO 27001, ISO 27701, PCI DSS",
       "privacyPolicyUrl": "https://toss.im/privacy-policy"
-    }
+    },
+    "thirdPartyProviders": [
+      {
+        "name": "한국신용정보원",
+        "purpose": "신용정보 조회 및 등록",
+        "sharedItems": "고유식별정보, 신용거래정보",
+        "retentionPeriod": "관련 법령에 따른 보존 기간"
+      },
+      {
+        "name": "토스 제휴 금융사",
+        "purpose": "맞춤형 금융상품 안내",
+        "sharedItems": "이름, 연락처, 소비패턴 정보",
+        "retentionPeriod": "동의 철회 시까지"
+      }
+    ]
   },
   "netflix": {
     "organization": {
@@ -243,6 +277,20 @@
       "legalName": "넷플릭스서비시스코리아 유한회사",
       "privacyCertification": "ISO 27001",
       "privacyPolicyUrl": "https://help.netflix.com/legal/privacy"
-    }
+    },
+    "thirdPartyProviders": [
+      {
+        "name": "콘텐츠 파트너사",
+        "purpose": "시청 통계 분석 및 콘텐츠 기획",
+        "sharedItems": "비식별 시청 기록",
+        "retentionPeriod": "계약 종료 시까지"
+      },
+      {
+        "name": "클라우드 서비스 제공자 (AWS)",
+        "purpose": "서비스 운영 인프라 (국외 이전)",
+        "sharedItems": "계정 정보, 시청 데이터",
+        "retentionPeriod": "서비스 이용 기간"
+      }
+    ]
   }
 }

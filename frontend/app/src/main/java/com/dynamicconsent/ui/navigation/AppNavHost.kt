@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.dynamicconsent.ui.orgdetail.OrgDetailScreen
 import com.dynamicconsent.ui.orgdetail.OrgDetailTab
 import com.dynamicconsent.ui.risk.RiskListScreen
@@ -39,6 +40,9 @@ fun AppNavHost(
                     type = NavType.StringType
                     defaultValue = OrgDetailTab.CONSENT.name
                 },
+            ),
+            deepLinks = listOf(
+                navDeepLink { uriPattern = Screen.OrgDetail.DEEP_LINK_URI_PATTERN },
             ),
         ) { backStackEntry ->
             val orgId = backStackEntry.arguments?.getString(Screen.OrgDetail.ARG_ORG_ID).orEmpty()

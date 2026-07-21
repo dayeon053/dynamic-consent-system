@@ -9,6 +9,7 @@ import com.dynamicconsent.data.repository.OrganizationRepository
 import com.dynamicconsent.domain.RiskRecalculator
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -42,18 +43,27 @@ class OrgDetailViewModel @JvmOverloads constructor(
                     .toSet(),
             )
 
-            // 스위치 토글 시 위험도 점수·등급·분석 정보가 즉시 재산출된다.
-            ConsentStateStore.enabledConsents.collect { consentStates ->
+            // 스위치 토글 시 위험도 점수·등급·분석 정보가 즉시 재산출되고, 변경 기록도 함께 갱신된다.
+            combine(
+                ConsentStateStore.enabledConsents,
+                ConsentStateStore.changeHistory,
+            ) { consentStates, history ->
                 val recalculated =
                     RiskRecalculator.recalculate(baseDetail, consentStates[orgId].orEmpty())
-                _uiState.update { it.copy(isLoading = false, detail = recalculated) }
+                recalculated to history[orgId].orEmpty()
+            }.collect { (recalculated, history) ->
+                _uiState.update {
+                    it.copy(isLoading = false, detail = recalculated, changeHistory = history)
+                }
             }
         }
     }
 
     fun toggleConsent(consentId: Int, enabled: Boolean) {
-        val orgId = _uiState.value.detail?.organization?.id ?: return
-        ConsentStateStore.setConsent(orgId, consentId, enabled)
+        val detail = _uiState.value.detail ?: return
+        val title = detail.consentDetail.optionalConsents
+            .firstOrNull { it.id == consentId }?.title ?: return
+        ConsentStateStore.setConsent(detail.organization.id, consentId, enabled, title)
     }
 
     fun selectTab(tab: OrgDetailTab) {
