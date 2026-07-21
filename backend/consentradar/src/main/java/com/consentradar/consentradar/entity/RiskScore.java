@@ -9,7 +9,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "risk_score")
+@Table(name = "risk_score", uniqueConstraints = @UniqueConstraint(
+        name = "uq_risk_score_user_company_scoredat_rep",
+        columnNames = {"user_id", "company_id", "scored_at", "is_representative"}
+))
 @Getter
 @Setter
 @NoArgsConstructor
