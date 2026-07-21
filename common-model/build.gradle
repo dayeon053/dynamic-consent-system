@@ -11,10 +11,23 @@ java {
     }
 }
 
+// 한글 주석·문자열이 포함된 소스를 OS 기본 인코딩(예: x-windows-949)이 아닌
+// UTF-8로 컴파일하도록 강제한다.
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
 repositories {
     mavenCentral()
 }
 
 dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.18.3'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
 }
