@@ -11,4 +11,5 @@ data class OrganizationDetail(
     val consentDetail: ConsentDetail,
     val riskAnalysis: RiskAnalysis,
     val companyInfo: CompanyInfo,
+    val thirdPartyProviders: List<ThirdPartyProvider> = emptyList(),
 )

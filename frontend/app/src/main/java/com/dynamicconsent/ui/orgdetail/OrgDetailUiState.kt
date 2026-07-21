@@ -1,5 +1,6 @@
 package com.dynamicconsent.ui.orgdetail
 
+import com.dynamicconsent.data.model.ConsentChangeRecord
 import com.dynamicconsent.data.model.OrganizationDetail
 
 enum class OrgDetailTab(val label: String) {
@@ -14,4 +15,5 @@ data class OrgDetailUiState(
     val isLoading: Boolean = false,
     val detail: OrganizationDetail? = null,
     val activeTab: OrgDetailTab = OrgDetailTab.CONSENT,
+    val changeHistory: List<ConsentChangeRecord> = emptyList(),
 )
