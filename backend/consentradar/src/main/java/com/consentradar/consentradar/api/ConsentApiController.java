@@ -1,6 +1,7 @@
 package com.consentradar.consentradar.api;
 
 import com.consentradar.consentradar.api.dto.CompanyRiskResponse;
+import com.consentradar.consentradar.api.dto.ConsentItemResponse;
 import com.consentradar.consentradar.api.dto.ConsentPatchResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -38,6 +39,19 @@ public class ConsentApiController {
             @RequestParam Long userId,
             @RequestParam(defaultValue = "risk_score_desc") String sort) {
         List<CompanyRiskResponse> response = consentApiService.getCompaniesSortedByRisk(userId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * GET /companies/{companyId}/consent-items?userId={userId}
+     * 기업의 필수/선택 동의 항목 전체를 5대 변수 값과 함께 반환한다. 동의 세부사항 탭(4-5)에서
+     * 사용하며, 각 항목의 consentItemId를 PATCH /users/{userId}/consents/{consentItemId}에 사용한다.
+     */
+    @GetMapping("/companies/{companyId}/consent-items")
+    public ResponseEntity<List<ConsentItemResponse>> getConsentItems(
+            @PathVariable Long companyId,
+            @RequestParam Long userId) {
+        List<ConsentItemResponse> response = consentApiService.getConsentItems(userId, companyId);
         return ResponseEntity.ok(response);
     }
 }
