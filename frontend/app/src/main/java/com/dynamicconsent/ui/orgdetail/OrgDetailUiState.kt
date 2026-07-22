@@ -16,4 +16,6 @@ data class OrgDetailUiState(
     val detail: OrganizationDetail? = null,
     val activeTab: OrgDetailTab = OrgDetailTab.CONSENT,
     val changeHistory: List<ConsentChangeRecord> = emptyList(),
+    /** 상세 로드 실패 메시지. null이면 정상. */
+    val error: String? = null,
 )

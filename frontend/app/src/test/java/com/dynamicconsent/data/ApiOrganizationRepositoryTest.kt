@@ -19,7 +19,8 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
 /**
  * MockWebServer로 백엔드 응답을 흉내 내어 DTO 파싱·매핑·요청 형식을 검증한다.
- * 응답 형식은 PR #18의 실제 Controller(ConsentApiController) 기준 (Jackson 기본 camelCase).
+ * 응답 형식은 실제 Controller(ConsentApiController) 기준 (Jackson 기본 camelCase).
+ * 기업 요약(GET /companies)과 동의 항목(GET /companies/{id}/consent-items)이 별도 응답.
  */
 class ApiOrganizationRepositoryTest {
 
@@ -45,55 +46,58 @@ class ApiOrganizationRepositoryTest {
         server.shutdown()
     }
 
-    /** consentItems는 백엔드 추가 예정 스펙 — 포함된 경우와 없는 경우(토스) 모두 검증 */
     private val companiesJson = """
         [
-          {
-            "companyId": 1,
-            "companyName": "카카오톡",
-            "packageName": "com.kakao.talk",
-            "privacyUrl": "https://www.kakao.com/policy/privacy",
-            "ismsCertified": true,
-            "riskScore": 43.5,
-            "riskGrade": "VERY_HIGH",
-            "consentItems": [
-              { "consentItemId": 11, "itemType": "REQUIRED", "itemName": "이용약관 동의",
-                "dsScore": 1, "esScore": 1, "tfScore": 1, "pcScore": 1.0, "aiScore": 1.0 },
-              { "consentItemId": 12, "itemType": "OPTIONAL", "itemName": "맞춤형 광고 동의",
-                "dsScore": 3, "esScore": 3, "tfScore": 3, "pcScore": 1.5, "aiScore": 1.5,
-                "checked": true }
-            ]
-          },
-          {
-            "companyId": 2,
-            "companyName": "토스",
-            "ismsCertified": false,
-            "riskScore": 32.0,
-            "riskGrade": "HIGH"
-          }
+          { "companyId": 1, "companyName": "카카오톡", "packageName": "com.kakao.talk",
+            "privacyUrl": "https://www.kakao.com/policy/privacy", "ismsCertified": true,
+            "riskScore": 43.5, "riskGrade": "VERY_HIGH" },
+          { "companyId": 2, "companyName": "토스", "ismsCertified": false,
+            "riskScore": 32.0, "riskGrade": "HIGH" }
         ]
     """.trimIndent()
 
+    private val kakaoItemsJson = """
+        [
+          { "consentItemId": 11, "itemName": "이용약관 동의", "itemType": "REQUIRED", "checked": true,
+            "dsScore": 1, "esScore": 1, "tfScore": 1, "pcScore": 1.0, "aiScore": 1.0 },
+          { "consentItemId": 12, "itemName": "맞춤형 광고 동의", "itemType": "OPTIONAL", "checked": true,
+            "dsScore": 3, "esScore": 3, "tfScore": 3, "pcScore": 1.5, "aiScore": 1.5 }
+        ]
+    """.trimIndent()
+
+    private val tossItemsJson = """
+        [
+          { "consentItemId": 21, "itemName": "신용정보 활용 동의", "itemType": "OPTIONAL", "checked": true,
+            "dsScore": 5, "esScore": 2, "tfScore": 3, "pcScore": 1.5, "aiScore": 1.0 }
+        ]
+    """.trimIndent()
+
+    /** getCompanies 1건 + 각 기업의 consent-items를 순서대로 응답하도록 큐잉 */
+    private fun enqueueAll() {
+        server.enqueue(MockResponse().setBody(companiesJson))
+        server.enqueue(MockResponse().setBody(kakaoItemsJson))
+        server.enqueue(MockResponse().setBody(tossItemsJson))
+    }
+
     @Test
     fun `기업 목록을 파싱해 위험도 내림차순으로 반환한다`() = runTest {
-        server.enqueue(MockResponse().setBody(companiesJson))
+        enqueueAll()
 
         val organizations = repository.getOrganizations()
 
-        // 카카오톡: consentItems 기반 재산출 3+(3×3×1.5×1.5)×2 = 43.5
         assertEquals(listOf("카카오톡", "토스"), organizations.map { it.name })
         assertEquals(43.5, organizations[0].riskScore, 0.0)
         assertEquals(RiskGrade.VERY_HIGH, organizations[0].riskGrade)
 
-        val request = server.takeRequest()
-        assertTrue(request.path!!.startsWith("/companies"))
-        assertTrue(request.path!!.contains("userId=1"))
-        assertTrue(request.path!!.contains("sort=risk_score_desc"))
+        val companiesReq = server.takeRequest()
+        assertTrue(companiesReq.path!!.startsWith("/companies?"))
+        assertTrue(companiesReq.path!!.contains("userId=1"))
+        assertTrue(companiesReq.path!!.contains("sort=risk_score_desc"))
     }
 
     @Test
-    fun `상세 매핑 시 필수-선택 분리와 변수 기여도가 유지된다`() = runTest {
-        server.enqueue(MockResponse().setBody(companiesJson))
+    fun `상세는 consent-items를 별도 호출해 변수 기여도와 함께 매핑한다`() = runTest {
+        enqueueAll()
 
         val detail = repository.getOrganizationDetail("1")!!
 
@@ -103,8 +107,13 @@ class ApiOrganizationRepositoryTest {
         assertEquals("맞춤형 광고 동의", optional.title)
         assertEquals(RiskVariables(ds = 3, es = 3, tf = 3, pc = 1.5, ai = 1.5), optional.variableImpact)
         assertEquals("ISMS-P", detail.companyInfo.privacyCertification)
-        assertEquals(1, detail.riskAnalysis.withdrawalEffects.size)
         assertEquals("최대 40.5점 감소", detail.riskAnalysis.maxEffect.totalReduction)
+
+        // 요청 순서: /companies → /companies/1/consent-items → /companies/2/consent-items
+        server.takeRequest()
+        val itemsReq = server.takeRequest()
+        assertTrue(itemsReq.path!!.startsWith("/companies/1/consent-items"))
+        assertTrue(itemsReq.path!!.contains("userId=1"))
     }
 
     @Test

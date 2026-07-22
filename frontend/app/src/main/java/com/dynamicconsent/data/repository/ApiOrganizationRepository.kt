@@ -8,8 +8,10 @@ import com.dynamicconsent.data.remote.dto.ConsentPatchResponse
 
 /**
  * 백엔드 REST API 기반 구현체.
- * 서버 배포 후 ViewModel의 DummyOrganizationRepository를 이 클래스로 교체하면 된다.
- * (교체 시 스위치 토글 → patchConsent 호출 → 응답 new_risk_score로 보정하는 흐름 연결)
+ * AppConfig.USE_REMOTE_API를 켜면 RepositoryProvider가 이 클래스를 주입한다.
+ *
+ * 기업 요약(GET /companies)과 동의 항목(GET /companies/{id}/consent-items)이 별도 호출이라,
+ * 상세 데이터는 두 응답을 합쳐 만든다. 3~5개 기업 기준이라 목록 진입 시 한 번에 로드하고 캐시한다.
  */
 class ApiOrganizationRepository(
     private val api: ConsentRadarApi,
@@ -37,11 +39,16 @@ class ApiOrganizationRepository(
         cache = null
     }
 
-    private suspend fun loadAll(): Map<String, OrganizationDetail> =
-        cache ?: api.getCompanies(userId)
-            .map(CompanyMapper::toOrganizationDetail)
-            .associateBy { it.organization.id }
-            .also { cache = it }
+    private suspend fun loadAll(): Map<String, OrganizationDetail> {
+        cache?.let { return it }
+        val companies = api.getCompanies(userId)
+        val details = companies.associate { company ->
+            val items = api.getConsentItems(company.companyId, userId)
+            company.companyId.toString() to CompanyMapper.toOrganizationDetail(company, items)
+        }
+        cache = details
+        return details
+    }
 
     companion object {
         /** 로그인 기능 전까지 사용하는 데모 사용자 id */

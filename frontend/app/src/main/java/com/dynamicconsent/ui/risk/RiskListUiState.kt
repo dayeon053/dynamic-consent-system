@@ -8,4 +8,6 @@ data class RiskListUiState(
     val organizations: List<Organization> = emptyList(),
     val selectedOrganizationId: String? = null,
     val selectedDetail: OrganizationDetail? = null,
+    /** 데이터 로드 실패 메시지. null이면 정상. */
+    val error: String? = null,
 )
