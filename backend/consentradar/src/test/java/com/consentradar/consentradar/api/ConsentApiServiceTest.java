@@ -6,9 +6,9 @@ import com.consentradar.consentradar.entity.ConsentItem;
 import com.consentradar.consentradar.entity.User;
 import com.consentradar.consentradar.entity.UserConsentCheck;
 import com.consentradar.consentradar.repository.*;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -27,11 +27,21 @@ class ConsentApiServiceTest {
     @Mock private CompanyRepository companyRepository;
     @Mock private RiskScoreRepository riskScoreRepository;
 
-    @InjectMocks
     private ConsentApiService consentApiService;
 
     private static final Long USER_ID = 1L;
     private static final Long COMPANY_ID = 10L;
+
+    @BeforeEach
+    void setUp() {
+        // PersonalRiskCalculator는 실제 인스턴스를 써서 mock 리포지토리 스텁이 그대로 통하게 한다
+        // (getConsentItems 등이 내부적으로 이 계산기에 위임하기 때문).
+        PersonalRiskCalculator personalRiskCalculator =
+                new PersonalRiskCalculator(consentItemRepository, userConsentCheckRepository);
+        consentApiService = new ConsentApiService(
+                userRepository, consentItemRepository, userConsentCheckRepository,
+                companyRepository, riskScoreRepository, personalRiskCalculator);
+    }
 
     @Test
     void getConsentItems_returnsRequiredItemAlwaysChecked_evenWithNoUserCheckRecord() {

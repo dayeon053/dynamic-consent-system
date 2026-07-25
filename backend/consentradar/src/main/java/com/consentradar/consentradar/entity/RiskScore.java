@@ -46,6 +46,15 @@ public class RiskScore {
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
+    /**
+     * 낙관적 락 버전 컬럼. 동일 사용자가 짧은 시간 안에 여러 선택동의를 토글해 같은
+     * (user, company) 대표 row를 동시에 갱신하는 경합 상황에서, 나중에 커밋하는 쪽이
+     * 먼저 커밋된 값을 조용히 덮어쓰지 않고 {@link org.springframework.orm.ObjectOptimisticLockingFailureException}으로
+     * 감지되게 한다. 호출부(RiskScoreUpsertService)는 이 예외를 받아 재계산 후 재시도한다.
+     */
+    @Version
+    private Long version;
+
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();

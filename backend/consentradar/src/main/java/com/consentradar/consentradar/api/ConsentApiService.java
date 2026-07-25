@@ -5,10 +5,7 @@ import com.consentradar.consentradar.api.dto.ConsentItemResponse;
 import com.consentradar.consentradar.api.dto.ConsentPatchResponse;
 import com.consentradar.consentradar.entity.*;
 import com.consentradar.consentradar.repository.*;
-import com.dynamicconsent.algorithm.RiskCalculator;
-import com.dynamicconsent.model.RiskInput;
 import com.dynamicconsent.model.RiskResult;
-import com.dynamicconsent.model.variable.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,17 +24,20 @@ public class ConsentApiService {
     private final UserConsentCheckRepository userConsentCheckRepository;
     private final CompanyRepository companyRepository;
     private final RiskScoreRepository riskScoreRepository;
+    private final PersonalRiskCalculator personalRiskCalculator;
 
     public ConsentApiService(UserRepository userRepository,
                              ConsentItemRepository consentItemRepository,
                              UserConsentCheckRepository userConsentCheckRepository,
                              CompanyRepository companyRepository,
-                             RiskScoreRepository riskScoreRepository) {
+                             RiskScoreRepository riskScoreRepository,
+                             PersonalRiskCalculator personalRiskCalculator) {
         this.userRepository              = userRepository;
         this.consentItemRepository       = consentItemRepository;
         this.userConsentCheckRepository  = userConsentCheckRepository;
         this.companyRepository           = companyRepository;
         this.riskScoreRepository         = riskScoreRepository;
+        this.personalRiskCalculator      = personalRiskCalculator;
     }
 
     /**
@@ -52,11 +52,20 @@ public class ConsentApiService {
      * 위험도만 보여준다"고 명시하고 있어서, 이 메서드가 실제로 UC-03/2-2/2-5를 구현하도록
      * REQUIRED 항목 + 이 사용자가 isChecked=true로 체크한 OPTIONAL 항목만으로 다시 계산한다.
      *
-     * 저장할 때도 기존 코드는 배치 파이프라인이 쓰는 company 단위 대표 RiskScore(user=null)를
-     * 그대로 덮어써서, 한 사용자가 토글할 때마다 다른 모든 사용자에게 보이는 값까지 같이
-     * 바뀌는 문제가 있었다. RiskScore에 user 컬럼이 이미 있으므로(회원별 row 구분 가능),
-     * company+user 조합의 row를 찾아서 갱신/생성하도록 바꿨다. 배치가 쓰는 user=null row는
-     * 건드리지 않는다.
+     * [수정 이력 — 동시 토글 경합 조건 대응, Sprint04 엣지케이스 검증]
+     * 같은 기업의 선택동의 여러 개를 짧은 시간 안에 토글하면(예: 스위치 두 개를 빠르게
+     * 연속 조작) 동시 요청끼리 대표 RiskScore row를 두고 경합한다.
+     *   1. 오늘자 대표 row가 아직 없을 때 두 요청이 동시에 "없음"으로 보고 각자 새로
+     *      insert하면, RiskScore의 유니크 제약(user_id, company_id, scored_at,
+     *      is_representative)에 하나가 위반되어 실패한다.
+     *   2. 이미 row가 있을 때 두 요청이 동시에 읽고 수정하면 나중에 커밋한 쪽이 먼저
+     *      커밋된 값을 조용히 덮어쓴다(lost update).
+     * RiskScore.version(@Version, 낙관적 락)으로 이 경합을 예외로 드러내고, 체크 토글부터
+     * 위험도 재계산·저장까지 전체를 하나의 트랜잭션으로 묶어 재시도한다 — 재계산까지
+     * 통째로 재시도해야, 재시도 시점에 이미 커밋된 상대방의 토글까지 반영한 최종값이
+     * 저장된다. (재시도는 이 메서드를 다시 호출하는 쪽인 {@link com.consentradar.consentradar.api.ConsentApiController}가
+     * 담당한다 — 같은 트랜잭션 안에서 실패 후 재시도하면 세션이 오염되어 불가능하고,
+     * 이 메서드 자체는 프록시를 통해 매번 새 트랜잭션으로 호출돼야 하기 때문이다.)
      */
     @Transactional
     public ConsentPatchResponse toggleConsent(Long userId, Long consentItemId) {
@@ -80,7 +89,7 @@ public class ConsentApiService {
         userConsentCheckRepository.save(check);
 
         Company company = consentItem.getCompany();
-        RiskResult newResult = calculatePersonalRisk(userId, company.getCompanyId());
+        RiskResult newResult = personalRiskCalculator.calculate(userId, company.getCompanyId());
 
         // 사용자별 개인 맞춤 대표 RiskScore 갱신 (company+user 로 구분되는 row. 배치용 user=null row와 별개)
         if (newResult != null) {
@@ -97,7 +106,8 @@ public class ConsentApiService {
             rep.setTotalScore(BigDecimal.valueOf(newResult.getScore()));
             rep.setGrade(RiskScore.Grade.valueOf(newResult.getGrade().name()));
             rep.setScoredAt(LocalDate.now());
-            riskScoreRepository.save(rep);
+            // saveAndFlush로 유니크 제약/낙관적 락 위반을 이 메서드 안에서 즉시 드러낸다.
+            riskScoreRepository.saveAndFlush(rep);
         }
 
         BigDecimal newScore = newResult != null ? BigDecimal.valueOf(newResult.getScore()) : null;
@@ -121,7 +131,7 @@ public class ConsentApiService {
 
         return companies.stream()
                 .map(company -> {
-                    RiskResult personalResult = calculatePersonalRisk(userId, company.getCompanyId());
+                    RiskResult personalResult = personalRiskCalculator.calculate(userId, company.getCompanyId());
                     return new CompanyRiskResponse(company, personalResult);
                 })
                 .sorted(Comparator.comparing(
@@ -142,7 +152,7 @@ public class ConsentApiService {
     @Transactional(readOnly = true)
     public List<ConsentItemResponse> getConsentItems(Long userId, Long companyId) {
         List<ConsentItem> items = consentItemRepository.findByCompany_CompanyId(companyId);
-        Set<Long> checkedOptionalItemIds = findCheckedOptionalItemIds(userId, companyId);
+        Set<Long> checkedOptionalItemIds = personalRiskCalculator.findCheckedOptionalItemIds(userId, companyId);
 
         return items.stream()
                 .map(item -> new ConsentItemResponse(
@@ -150,83 +160,5 @@ public class ConsentApiService {
                         item.getItemType() == ConsentItem.ItemType.REQUIRED
                                 || checkedOptionalItemIds.contains(item.getConsentItemId())))
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * 필수동의 전체 + 이 사용자가 isChecked=true로 체크한 선택동의만으로 위험도를 계산한다.
-     * (F2: "필수동의 + 사용자가 실제 체크한 선택동의를 기준으로 산출", 워스트 케이스 아님)
-     *
-     * 대표값 산출 방식은 기존 calculateMax(항목별 점수의 최댓값)를 그대로 유지했다.
-     * FE의 combineImpacts(변수별 최댓값 합성)와 다른 방식이라 다인원 항목 조합에서 최종
-     * 숫자가 달라질 수 있다는 점은 docs/personal_risk_server_decision.md 에 이미 정리돼 있고,
-     * 그 부분은 별도 팀 결정 사항이라 이번 수정 범위에서는 건드리지 않았다.
-     */
-    private RiskResult calculatePersonalRisk(Long userId, Long companyId) {
-        List<ConsentItem> allItems = consentItemRepository.findByCompany_CompanyId(companyId);
-        if (allItems.isEmpty()) {
-            return null;
-        }
-
-        Set<Long> checkedOptionalItemIds = findCheckedOptionalItemIds(userId, companyId);
-
-        List<RiskInput> personalInputs = allItems.stream()
-                .filter(item -> item.getItemType() == ConsentItem.ItemType.REQUIRED
-                        || checkedOptionalItemIds.contains(item.getConsentItemId()))
-                .map(this::toRiskInput)
-                .collect(Collectors.toList());
-
-        // 필수동의조차 없는 비정상 데이터인 경우를 대비한 방어 코드
-        return personalInputs.isEmpty() ? null : RiskCalculator.calculateMax(personalInputs);
-    }
-
-    private Set<Long> findCheckedOptionalItemIds(Long userId, Long companyId) {
-        return userConsentCheckRepository
-                .findAllByUser_UserIdAndConsentItem_Company_CompanyId(userId, companyId)
-                .stream()
-                .filter(UserConsentCheck::isChecked)
-                .map(c -> c.getConsentItem().getConsentItemId())
-                .collect(Collectors.toSet());
-    }
-
-    private RiskInput toRiskInput(ConsentItem item) {
-        return new RiskInput(
-                scoreToDataSensitivity(item.getDsScore()),
-                scoreToExposureScope(item.getEsScore()),
-                scoreToTimeFactor(item.getTfScore()),
-                scoreToPurposeClarity(item.getPcScore()),
-                scoreToAiRiskFactor(item.getAiScore())
-        );
-    }
-
-    private DataSensitivity scoreToDataSensitivity(int score) {
-        return switch (score) {
-            case 1 -> DataSensitivity.LOW;
-            case 3 -> DataSensitivity.MODERATE;
-            default -> DataSensitivity.HIGH;
-        };
-    }
-
-    private ExposureScope scoreToExposureScope(int score) {
-        return switch (score) {
-            case 1 -> ExposureScope.LOW;
-            case 2 -> ExposureScope.MEDIUM;
-            default -> ExposureScope.HIGH;
-        };
-    }
-
-    private TimeFactor scoreToTimeFactor(int score) {
-        return switch (score) {
-            case 1 -> TimeFactor.SHORT;
-            case 2 -> TimeFactor.MEDIUM;
-            default -> TimeFactor.LONG;
-        };
-    }
-
-    private PurposeClarity scoreToPurposeClarity(double score) {
-        return score <= 1.0 ? PurposeClarity.COMPLIANT : PurposeClarity.NON_COMPLIANT;
-    }
-
-    private AiRiskFactor scoreToAiRiskFactor(double score) {
-        return score <= 1.0 ? AiRiskFactor.LOW_RISK : AiRiskFactor.HIGH_RISK;
     }
 }
