@@ -3,7 +3,14 @@ package com.dynamicconsent.algorithm;
 import com.dynamicconsent.model.RiskGrade;
 import com.dynamicconsent.model.RiskInput;
 import com.dynamicconsent.model.RiskResult;
+import com.dynamicconsent.model.variable.AiRiskFactor;
+import com.dynamicconsent.model.variable.DataSensitivity;
+import com.dynamicconsent.model.variable.ExposureScope;
+import com.dynamicconsent.model.variable.PurposeClarity;
+import com.dynamicconsent.model.variable.TimeFactor;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -68,6 +75,45 @@ public class RiskCalculator {
                 .map(RiskCalculator::calculate)
                 .max(java.util.Comparator.comparingDouble(RiskResult::getScore))
                 .orElseThrow();
+    }
+
+    /**
+     * PIA/FAIR 통합 위험도 모델 설계 문서 기준 정본(canonical) 합산 방식. 여러 동의 항목이
+     * 동시에 활성화됐을 때 각 변수의 최댓값을 취해 하나의 위험도로 합성한다. 프론트
+     * (RiskCalculator.kt combineImpacts)와 동일 로직이어야 하며, 두 코드베이스 중 하나만
+     * 바뀌면 FE/서버 점수가 어긋난다.
+     *
+     * @param inputs 동의 항목별 RiskInput 목록
+     * @return DS/ES/TF/PC/AI 각각의 최댓값을 합성한 RiskInput으로 산출한 RiskResult
+     * @throws IllegalArgumentException inputs가 null이거나 비어있는 경우
+     */
+    public static RiskResult combineImpacts(List<RiskInput> inputs) {
+        if (inputs == null || inputs.isEmpty()) {
+            throw new IllegalArgumentException("입력값 목록이 비어있습니다.");
+        }
+
+        DataSensitivity ds = inputs.stream()
+                .map(RiskInput::getDataSensitivity)
+                .max(Comparator.comparingInt(v -> v.score))
+                .orElseThrow();
+        ExposureScope es = inputs.stream()
+                .map(RiskInput::getExposureScope)
+                .max(Comparator.comparingInt(v -> v.score))
+                .orElseThrow();
+        TimeFactor tf = inputs.stream()
+                .map(RiskInput::getTimeFactor)
+                .max(Comparator.comparingInt(v -> v.score))
+                .orElseThrow();
+        PurposeClarity pc = inputs.stream()
+                .map(RiskInput::getPurposeClarity)
+                .max(Comparator.comparingDouble(v -> v.score))
+                .orElseThrow();
+        AiRiskFactor ai = inputs.stream()
+                .map(RiskInput::getAiRiskFactor)
+                .max(Comparator.comparingDouble(v -> v.score))
+                .orElseThrow();
+
+        return calculate(new RiskInput(ds, es, tf, pc, ai));
     }
 
     /**

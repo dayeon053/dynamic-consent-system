@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
@@ -111,6 +112,69 @@ class RiskCalculatorTest {
     void calculateMaxRejectsEmptyList() {
         assertThrows(IllegalArgumentException.class,
                 () -> RiskCalculator.calculateMax(List.of()));
+    }
+
+    // ── combineImpacts (2026-07-26 팀 결정 — 정본 합산 방식) ──────
+
+    @Test
+    void combineImpactsSynthesizesPerVariableMaximumAcrossItems() {
+        // 설계 문서 예시 조합(DS=3,ES=3,TF=3,PC=1.5,AI=1.5)을 두 항목에서 변수별로
+        // 나눠 재현한다 — 항목 하나를 통째로 고르는 게 아니라 변수마다 최댓값을 따로
+        // 뽑아 합성한다는 걸 증명하기 위해 각 변수의 최댓값 출처를 서로 다른 항목에 둔다.
+        RiskInput itemA = new RiskInput(
+                DataSensitivity.MODERATE,     // 3 ← 이 항목에서 채택
+                ExposureScope.LOW,            // 1
+                TimeFactor.LONG,              // 3 ← 이 항목에서 채택
+                PurposeClarity.COMPLIANT,     // 1.0
+                AiRiskFactor.HIGH_RISK);      // 1.5 ← 이 항목에서 채택
+        RiskInput itemB = new RiskInput(
+                DataSensitivity.LOW,          // 1
+                ExposureScope.HIGH,           // 3 ← 이 항목에서 채택
+                TimeFactor.SHORT,             // 1
+                PurposeClarity.NON_COMPLIANT, // 1.5 ← 이 항목에서 채택
+                AiRiskFactor.LOW_RISK);       // 1.0
+
+        // 합성 결과: DS=3, ES=3, TF=3, PC=1.5, AI=1.5 -> 3 + (3×3×1.5×1.5)×2 = 43.5
+        RiskResult result = RiskCalculator.combineImpacts(List.of(itemA, itemB));
+
+        assertEquals(43.5, result.getScore(), DELTA);
+        assertEquals(RiskGrade.VERY_HIGH, result.getGrade());
+    }
+
+    @Test
+    void combineImpactsDiffersFromCalculateMax_whenNoSingleItemDominatesEveryVariable() {
+        // calculateMax는 "항목별 점수 중 최댓값"(가장 위험한 항목 하나의 점수)을,
+        // combineImpacts는 "변수별 최댓값을 먼저 합성한 뒤 1회 계산"을 쓴다. 어느 항목도
+        // 모든 변수에서 동시에 1등이 아니면 두 방식의 결과가 달라져야 한다 — 두 방식이
+        // 실제로 다른 알고리즘이라는 걸 증명하는 회귀 테스트.
+        RiskInput itemA = new RiskInput(
+                DataSensitivity.MODERATE, ExposureScope.HIGH, TimeFactor.SHORT,
+                PurposeClarity.COMPLIANT, AiRiskFactor.LOW_RISK); // 3+(3×1×1×1)×2=9.0
+        RiskInput itemB = new RiskInput(
+                DataSensitivity.LOW, ExposureScope.LOW, TimeFactor.LONG,
+                PurposeClarity.NON_COMPLIANT, AiRiskFactor.HIGH_RISK); // 1+(1×3×1.5×1.5)×2=14.5
+        List<RiskInput> inputs = List.of(itemA, itemB);
+
+        RiskResult maxResult = RiskCalculator.calculateMax(inputs);
+        RiskResult combinedResult = RiskCalculator.combineImpacts(inputs);
+
+        assertEquals(14.5, maxResult.getScore(), DELTA, "calculateMax는 항목B의 점수를 그대로 채택");
+        // 변수별 최댓값 합성: DS=3,ES=3,TF=3,PC=1.5,AI=1.5 -> 3+(3×3×1.5×1.5)×2=43.5
+        assertEquals(43.5, combinedResult.getScore(), DELTA, "combineImpacts는 변수별 최댓값을 합성");
+        assertNotEquals(maxResult.getScore(), combinedResult.getScore(),
+                "두 방식은 서로 다른 알고리즘이므로 이 케이스에서 결과가 달라야 한다");
+    }
+
+    @Test
+    void combineImpactsRejectsNullList() {
+        assertThrows(IllegalArgumentException.class,
+                () -> RiskCalculator.combineImpacts(null));
+    }
+
+    @Test
+    void combineImpactsRejectsEmptyList() {
+        assertThrows(IllegalArgumentException.class,
+                () -> RiskCalculator.combineImpacts(List.of()));
     }
 
     // ── calculateRevocationEffect (동의 철회 효과) ────────────────

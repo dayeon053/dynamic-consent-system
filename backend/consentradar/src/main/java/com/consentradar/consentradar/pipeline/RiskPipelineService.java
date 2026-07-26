@@ -170,6 +170,10 @@ public class RiskPipelineService {
         System.out.println("[Pipeline] 항목별 RiskScore 저장 완료: " + savedScores.size() + "건");
 
         // 6. 기업 대표 위험도 산출(최고 점수) + RiskScore 저장 (isRepresentative=true)
+        // TODO(2026-07-26, 다연 확인 필요): 개인 맞춤 위험도(PersonalRiskCalculator.calculate)는
+        // combineImpacts(변수별 최댓값 합성)로 정본 통일됨. 여기는 개인 맞춤이 아니라 "기업 전체
+        // (배치) 대표 점수" 계산이라 성격이 달라 calculateMax를 그대로 두었다 — 이것도
+        // combineImpacts로 통일해야 하는지는 별도 팀 결정 필요.
         System.out.println("[Pipeline] 6단계: 기업 대표 위험도 산출 시작");
         RiskResult companyResult = RiskCalculator.calculateMax(riskInputs);
 
