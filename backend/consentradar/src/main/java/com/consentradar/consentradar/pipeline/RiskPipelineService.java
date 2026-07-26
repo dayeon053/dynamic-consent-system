@@ -27,6 +27,9 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 전체 위험도 산출 파이프라인 오케스트레이터
@@ -131,6 +134,14 @@ public class RiskPipelineService {
         List<RiskScore> savedScores = new ArrayList<>();
         List<com.dynamicconsent.model.RiskInput> riskInputs = new ArrayList<>();
 
+        // itemName 기준으로 기존 ConsentItem을 찾아 재사용한다. 매번 새로 insert하면
+        // 약관 재분석마다 중복 데이터가 쌓이고, 단순 삭제 후 재삽입은 cascade(ALL)로 걸린
+        // UserConsentCheck(사용자 동의 이력)까지 함께 삭제되어 버리기 때문이다.
+        Map<String, ConsentItem> existingItemsByName = consentItemRepository
+                .findByCompany_CompanyId(company.getCompanyId())
+                .stream()
+                .collect(Collectors.toMap(ConsentItem::getItemName, Function.identity(), (a, b) -> a));
+
         for (ConsentItemAnalysis item : llmResponse.getConsentItems()) {
             com.dynamicconsent.model.RiskInput riskInput = item.toRiskInput();
             riskInputs.add(riskInput);
@@ -140,10 +151,16 @@ public class RiskPipelineService {
                     item.getItemName(), result.getScore(),
                     result.getGrade().englishLabel, result.getGrade().koreanLabel);
 
-            // ConsentItem 저장
-            ConsentItem consentItem = new ConsentItem();
-            consentItem.setCompany(company);
-            consentItem.setItemName(item.getItemName());
+            // ConsentItem upsert: 기존 항목이면 UserConsentCheck를 유지한 채 점수/타입만 갱신하고,
+            // 없으면 새로 만든다.
+            // TODO(다연 논의 필요): 이번 크롤링 결과에 더 이상 나타나지 않는 예전 ConsentItem을
+            // 삭제할지, 만료 플래그로 남길지는 범위 밖 — 현재는 그대로 유지된다.
+            ConsentItem consentItem = existingItemsByName.get(item.getItemName());
+            if (consentItem == null) {
+                consentItem = new ConsentItem();
+                consentItem.setCompany(company);
+                consentItem.setItemName(item.getItemName());
+            }
             consentItem.setItemType(ConsentItem.ItemType.valueOf(item.getItemType()));
             consentItem.setDsScore(riskInput.getDataSensitivity().score);
             consentItem.setEsScore(riskInput.getExposureScope().score);
