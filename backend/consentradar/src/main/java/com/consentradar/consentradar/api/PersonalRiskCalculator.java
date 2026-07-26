@@ -35,6 +35,10 @@ public class PersonalRiskCalculator {
         this.userConsentCheckRepository = userConsentCheckRepository;
     }
 
+    // TODO(PR #30 머지 후 처리): 개인 맞춤 위험도 정본 합산 방식이 combineImpacts로
+    // 통일되기로 팀 결정됨(docs/personal_risk_server_decision.md). PR #30
+    // (feature/combine-impacts-canonical-model)이 develop에 머지되면 아래
+    // calculateMax를 combineImpacts로 교체할 것.
     public RiskResult calculate(Long userId, Long companyId) {
         List<ConsentItem> allItems = consentItemRepository.findByCompany_CompanyId(companyId);
         if (allItems.isEmpty()) {
