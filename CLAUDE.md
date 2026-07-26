@@ -21,4 +21,4 @@
 
 ## 알려진 이슈 / 미완성 상태
 
-`docs/known_issues.md`, `docs/personal_risk_server_decision.md`도 함께 참고. 특히 `RiskPipelineService`(크롤링→LLM→위험도산출→DB저장)는 스케줄러(`PolicyCrawlScheduler`)에서 실제로 호출되지 않는 상태이므로, 관련 작업 시 이 연결 부재를 전제로 판단할 것.
+`docs/known_issues.md`, `docs/personal_risk_server_decision.md`도 함께 참고. `RiskPipelineService`(크롤링→LLM→위험도산출→DB저장)는 스케줄러(`PolicyCrawlScheduler.processCompany()`)에 이미 연결되어 있어, 최초 수집이거나 약관이 실제로 변경된 기업에 대해 매일 새벽 3시 자동 호출된다(2026-07-26 기준). 이 연결 때문에 `analyzeAndSaveRisk()`가 재분석 때마다 ConsentItem을 insert만 해 중복이 쌓이는 라이브 버그가 실제로 발생했고, PR #24에서 itemName 기준 upsert로 수정했다 — 관련 내용은 `docs/known_issues.md` 참고.
