@@ -72,11 +72,19 @@ public class PersonalRiskCalculator {
         );
     }
 
+    /**
+     * [수정 이력 — default 뭉개기 버그 수정]
+     * 기존엔 1,3 이외의 모든 값(잘못된 DB 값 포함)이 default로 떨어져 조용히 HIGH(5점)로
+     * 매핑됐다. DS 유효값은 {@link DataSensitivity} 문서대로 1/3/5뿐이므로 전부 명시하고,
+     * 그 외 값은 데이터 오염을 조용히 삼키지 않도록 예외를 던진다.
+     */
     private DataSensitivity scoreToDataSensitivity(int score) {
         return switch (score) {
             case 1 -> DataSensitivity.LOW;
             case 3 -> DataSensitivity.MODERATE;
-            default -> DataSensitivity.HIGH;
+            case 5 -> DataSensitivity.HIGH;
+            default -> throw new IllegalArgumentException(
+                    "유효하지 않은 DS(데이터 민감도) 점수입니다: " + score + " (허용값: 1, 3, 5)");
         };
     }
 
@@ -84,7 +92,9 @@ public class PersonalRiskCalculator {
         return switch (score) {
             case 1 -> ExposureScope.LOW;
             case 2 -> ExposureScope.MEDIUM;
-            default -> ExposureScope.HIGH;
+            case 3 -> ExposureScope.HIGH;
+            default -> throw new IllegalArgumentException(
+                    "유효하지 않은 ES(노출 범위) 점수입니다: " + score + " (허용값: 1, 2, 3)");
         };
     }
 
@@ -92,7 +102,9 @@ public class PersonalRiskCalculator {
         return switch (score) {
             case 1 -> TimeFactor.SHORT;
             case 2 -> TimeFactor.MEDIUM;
-            default -> TimeFactor.LONG;
+            case 3 -> TimeFactor.LONG;
+            default -> throw new IllegalArgumentException(
+                    "유효하지 않은 TF(경과 시간) 점수입니다: " + score + " (허용값: 1, 2, 3)");
         };
     }
 
