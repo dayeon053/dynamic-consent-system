@@ -37,7 +37,9 @@ import com.dynamicconsent.monitor.AppLaunchMonitorService
 import com.dynamicconsent.monitor.RiskOverlayPipeline
 import com.dynamicconsent.monitor.WatchedApps
 import com.dynamicconsent.monitor.hasUsageAccess
+import com.dynamicconsent.monitor.isIgnoringBatteryOptimizations
 import com.dynamicconsent.monitor.openUsageAccessSettings
+import com.dynamicconsent.monitor.requestIgnoreBatteryOptimizations
 import com.dynamicconsent.overlay.canDrawOverlays
 import com.dynamicconsent.overlay.rememberOverlayPermissionRequest
 import com.dynamicconsent.ui.theme.TextPrimary
@@ -64,6 +66,7 @@ fun MonitorScreen(
     var usageGranted by remember { mutableStateOf(hasUsageAccess(context)) }
     var overlayGranted by remember { mutableStateOf(canDrawOverlays(context)) }
     var monitoring by remember { mutableStateOf(AppLaunchMonitorService.isRunning) }
+    var batteryExempt by remember { mutableStateOf(isIgnoringBatteryOptimizations(context)) }
 
     // 설정 화면에 다녀오면(ON_RESUME) 권한 상태를 다시 읽는다
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -73,6 +76,7 @@ fun MonitorScreen(
                 usageGranted = hasUsageAccess(context)
                 overlayGranted = canDrawOverlays(context)
                 monitoring = AppLaunchMonitorService.isRunning
+                batteryExempt = isIgnoringBatteryOptimizations(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -116,12 +120,25 @@ fun MonitorScreen(
                 onRequest = requestOverlayPermission,
             )
 
+            PermissionRow(
+                label = "배터리 최적화 예외",
+                granted = batteryExempt,
+                onRequest = { requestIgnoreBatteryOptimizations(context) },
+            )
+            Text(
+                "예외로 등록해야 화면이 꺼진 뒤에도 감지가 끊기지 않습니다. " +
+                    "제조사 자체 절전 기능은 별도로 해제해야 할 수 있습니다.",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary,
+            )
+
             HorizontalDivider()
 
             Text("2. 백그라운드 감시", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
             Text(
                 "감시 대상: ${WatchedApps.watchedPackages.joinToString()}\n" +
-                    "감시 중에 카카오톡을 실행하면 위험도 팝업이 뜹니다.",
+                    "감시 중에 카카오톡을 실행하면 위험도 팝업이 뜹니다.\n" +
+                    "한 번 켜두면 재부팅하거나 최근 앱에서 앱을 지워도 자동으로 다시 시작됩니다.",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextSecondary,
             )

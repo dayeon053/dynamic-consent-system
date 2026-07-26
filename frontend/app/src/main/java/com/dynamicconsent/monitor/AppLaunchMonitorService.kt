@@ -47,6 +47,7 @@ class AppLaunchMonitorService : Service() {
         if (!hasUsageAccess(this) || !canDrawOverlays(this)) {
             Log.w(TAG, "권한 부족으로 감시를 시작할 수 없음 " +
                     "(usageAccess=${hasUsageAccess(this)}, overlay=${canDrawOverlays(this)})")
+            MonitorPreferences.setMonitoringEnabled(this, false)
             stopSelf()
             return START_NOT_STICKY
         }
@@ -74,6 +75,20 @@ class AppLaunchMonitorService : Service() {
 
         isRunning = true
         return START_STICKY
+    }
+
+    /**
+     * 최근 앱 목록에서 스와이프로 앱을 제거하면 시스템이 서비스를 함께 종료한다.
+     * 사용자가 감시를 켜둔 상태였다면 즉시 다시 시작해 감시가 끊기지 않게 한다.
+     * (SYSTEM_ALERT_WINDOW 권한 보유 앱은 백그라운드 FGS 시작 제한의 예외에 해당한다.)
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        if (MonitorPreferences.isMonitoringEnabled(this)) {
+            Log.i(TAG, "태스크 제거 감지 → 감시 서비스 재시작")
+            runCatching { start(applicationContext) }
+                .onFailure { Log.e(TAG, "감시 서비스 재시작 실패", it) }
+        }
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
@@ -129,6 +144,7 @@ class AppLaunchMonitorService : Service() {
 
         /** 화면에 보이는 컨텍스트(Activity/Compose)에서 호출할 것. */
         fun start(context: Context) {
+            MonitorPreferences.setMonitoringEnabled(context, true)
             val intent = Intent(context, AppLaunchMonitorService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -138,6 +154,8 @@ class AppLaunchMonitorService : Service() {
         }
 
         fun stop(context: Context) {
+            // 사용자가 명시적으로 끈 것이므로 재부팅 후에도 자동 복구하지 않는다.
+            MonitorPreferences.setMonitoringEnabled(context, false)
             context.stopService(Intent(context, AppLaunchMonitorService::class.java))
         }
     }
