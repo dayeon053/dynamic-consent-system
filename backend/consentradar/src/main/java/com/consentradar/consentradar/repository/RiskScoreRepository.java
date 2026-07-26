@@ -23,4 +23,7 @@ public interface RiskScoreRepository extends JpaRepository<RiskScore, Long> {
     /** 특정 사용자의 개인 맞춤 대표 위험도 (company + user 로 구분되는 별도 row). */
     Optional<RiskScore> findTopByCompany_CompanyIdAndUser_UserIdAndIsRepresentativeTrueOrderByScoredAtDesc(
             Long companyId, Long userId);
+
+    /** 해당 기업에 저장된 RiskScore가 하나라도 있는지 (company 삭제 가능 여부 판단용). */
+    boolean existsByCompany_CompanyId(Long companyId);
 }
