@@ -189,6 +189,29 @@ class ConsentApiServiceTest {
     }
 
     @Test
+    void toggleConsent_returnsNullScoreAndGrade_ratherThanThrowing_whenConsentItemHasInvalidScoreData() {
+        // 노가현님 리뷰 피드백 — PersonalRiskCalculator가 잘못된 점수값에 예외를 던지도록
+        // 바뀌면서, 이걸 그대로 두면 데이터 오염된 기업 하나 때문에 그 기업 토글 요청이
+        // 500으로 죽는다. toggleConsent()는 위험도 미상(null)으로 응답해야 한다.
+        ConsentItem corrupted = consentItem(1L, ConsentItem.ItemType.REQUIRED);
+        corrupted.setDsScore(2); // 유효값(1,3,5) 아님
+        UserConsentCheck existing = userConsentCheck(corrupted, false);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user()));
+        when(consentItemRepository.findById(1L)).thenReturn(Optional.of(corrupted));
+        when(userConsentCheckRepository.findByUser_UserIdAndConsentItem_ConsentItemId(USER_ID, 1L))
+                .thenReturn(Optional.of(existing));
+        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(corrupted));
+        when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
+                .thenReturn(List.of(existing));
+
+        ConsentPatchResponse response = consentApiService.toggleConsent(USER_ID, 1L);
+
+        assertNull(response.getNewRiskScore());
+        assertNull(response.getNewRiskGrade());
+        verify(riskScoreRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
     void toggleConsent_createsNewRepresentativeRiskScore_whenNoneExistsForToday() {
         ConsentItem required = consentItem(1L, ConsentItem.ItemType.REQUIRED);
         UserConsentCheck existing = userConsentCheck(required, false);
@@ -366,6 +389,38 @@ class ConsentApiServiceTest {
         assertTrue(response.isIsmsCertified());
         assertEquals(0, BigDecimal.valueOf(7.0).compareTo(response.getRiskScore()));
         assertEquals("LOW", response.getRiskGrade());
+    }
+
+    @Test
+    void getCompaniesSortedByRisk_skipsCompanyWithInvalidScoreData_ratherThanFailingWholeList() {
+        // 노가현님 리뷰 피드백 — 기업 하나의 동의항목 데이터가 잘못돼도(예: DS=2, 유효값 아님)
+        // 목록 전체 API가 500으로 죽으면 안 되고, 그 기업만 위험도 미상(null)으로 나오고
+        // 나머지 기업은 정상 응답해야 한다.
+        Company corruptedCompany = company(400L, "데이터오염기업");
+        Company normalCompany = company(100L, "정상기업");
+        ConsentItem corruptedItem = consentItemForCompany(1L, corruptedCompany, ConsentItem.ItemType.REQUIRED,
+                2, 1, 1, 1.0, 1.0); // DS=2는 유효값(1,3,5) 아님
+        ConsentItem normalItem = consentItemForCompany(2L, normalCompany, ConsentItem.ItemType.REQUIRED,
+                1, 1, 1, 1.0, 1.0); // 3.0
+
+        when(companyRepository.findAll()).thenReturn(List.of(corruptedCompany, normalCompany));
+        when(consentItemRepository.findByCompany_CompanyId(400L)).thenReturn(List.of(corruptedItem));
+        when(consentItemRepository.findByCompany_CompanyId(100L)).thenReturn(List.of(normalItem));
+        when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, 400L))
+                .thenReturn(List.of());
+        when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, 100L))
+                .thenReturn(List.of());
+
+        List<CompanyRiskResponse> result = consentApiService.getCompaniesSortedByRisk(USER_ID);
+
+        assertEquals(2, result.size(), "예외를 던진 기업이 있어도 목록 전체가 죽지 않고 둘 다 나와야 한다");
+        CompanyRiskResponse corrupted = result.stream()
+                .filter(r -> r.getCompanyId().equals(400L)).findFirst().orElseThrow();
+        CompanyRiskResponse normal = result.stream()
+                .filter(r -> r.getCompanyId().equals(100L)).findFirst().orElseThrow();
+        assertNull(corrupted.getRiskScore(), "데이터 오염된 기업은 위험도 미상(null)으로 나와야 한다");
+        assertNull(corrupted.getRiskGrade());
+        assertEquals(0, BigDecimal.valueOf(3.0).compareTo(normal.getRiskScore()), "다른 정상 기업은 영향받지 않아야 한다");
     }
 
     private User user() {

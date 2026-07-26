@@ -6,6 +6,8 @@ import com.consentradar.consentradar.api.dto.ConsentPatchResponse;
 import com.consentradar.consentradar.entity.*;
 import com.consentradar.consentradar.repository.*;
 import com.dynamicconsent.model.RiskResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class ConsentApiService {
+
+    private static final Logger log = LoggerFactory.getLogger(ConsentApiService.class);
 
     private final UserRepository userRepository;
     private final ConsentItemRepository consentItemRepository;
@@ -89,7 +93,7 @@ public class ConsentApiService {
         userConsentCheckRepository.save(check);
 
         Company company = consentItem.getCompany();
-        RiskResult newResult = personalRiskCalculator.calculate(userId, company.getCompanyId());
+        RiskResult newResult = safeCalculate(userId, company.getCompanyId());
 
         // 사용자별 개인 맞춤 대표 RiskScore 갱신 (company+user 로 구분되는 row. 배치용 user=null row와 별개)
         if (newResult != null) {
@@ -130,14 +134,31 @@ public class ConsentApiService {
         List<Company> companies = companyRepository.findAll();
 
         return companies.stream()
-                .map(company -> {
-                    RiskResult personalResult = personalRiskCalculator.calculate(userId, company.getCompanyId());
-                    return new CompanyRiskResponse(company, personalResult);
-                })
+                .map(company -> new CompanyRiskResponse(company, safeCalculate(userId, company.getCompanyId())))
                 .sorted(Comparator.comparing(
                         r -> r.getRiskScore() != null ? r.getRiskScore() : BigDecimal.ZERO,
                         Comparator.reverseOrder()))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * [수정 이력 — 잘못된 데이터 하나가 전체 API를 죽이는 문제 방어]
+     * PersonalRiskCalculator.calculate()는 ConsentItem의 DS/ES/TF 점수가 유효값(1,3,5 /
+     * 1,2,3)을 벗어나면 IllegalArgumentException을 던지도록 바뀌었다(데이터 오염을 조용히
+     * 삼키지 않기 위함). 그런데 getCompaniesSortedByRisk()는 이 계산을 기업 목록 전체에 대해
+     * 스트림으로 도는데, 그대로 두면 기업 하나의 데이터만 잘못돼도 예외가 스트림 전체를
+     * 끊어서 목록 조회 API 전체가 500으로 죽는다 — 잘못된 데이터를 "드러내는" 목적이었지
+     * 관련 없는 다른 기업까지 전부 못 보게 만들려던 게 아니다. 그 기업만 위험도 미상(null)으로
+     * 처리하고 나머지는 정상 응답하도록 이 메서드를 통해 예외를 여기서 흡수한다.
+     */
+    private RiskResult safeCalculate(Long userId, Long companyId) {
+        try {
+            return personalRiskCalculator.calculate(userId, companyId);
+        } catch (IllegalArgumentException e) {
+            log.warn("companyId={} 위험도 계산 실패 — 잘못된 동의 항목 데이터로 추정, 위험도 미상 처리: {}",
+                    companyId, e.getMessage());
+            return null;
+        }
     }
 
     /**
