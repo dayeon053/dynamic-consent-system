@@ -3,7 +3,6 @@ package com.consentradar.consentradar.consentitem;
 import com.consentradar.consentradar.entity.Company;
 import com.consentradar.consentradar.entity.ConsentItem;
 import com.consentradar.consentradar.repository.CompanyRepository;
-import com.consentradar.consentradar.repository.ConsentItemRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,6 +11,8 @@ import java.util.List;
 /**
  * LLM 파싱 결과로 나온 ConsentItemDto 목록을 하나의 트랜잭션으로 배치 저장한다.
  * 항목 중 하나라도 점수 범위(0~10)를 벗어나면 전체를 저장하지 않고 롤백한다.
+ * itemName 기준 upsert({@link ConsentItemUpsertService})라서, 같은 companyId로 두 번
+ * 호출돼도(예: 재처리) 기존 항목이 갱신될 뿐 중복 insert되지 않는다.
  */
 @Service
 public class ConsentItemBatchService {
@@ -20,12 +21,12 @@ public class ConsentItemBatchService {
     private static final double MAX_SCORE = 10.0;
 
     private final CompanyRepository companyRepository;
-    private final ConsentItemRepository consentItemRepository;
+    private final ConsentItemUpsertService consentItemUpsertService;
 
     public ConsentItemBatchService(CompanyRepository companyRepository,
-                                    ConsentItemRepository consentItemRepository) {
+                                    ConsentItemUpsertService consentItemUpsertService) {
         this.companyRepository = companyRepository;
-        this.consentItemRepository = consentItemRepository;
+        this.consentItemUpsertService = consentItemUpsertService;
     }
 
     @Transactional
@@ -35,11 +36,11 @@ public class ConsentItemBatchService {
 
         items.forEach(this::validateScoreRange);
 
-        List<ConsentItem> entities = items.stream()
-                .map(dto -> toEntity(company, dto))
+        return items.stream()
+                .map(dto -> consentItemUpsertService.upsert(
+                        company, dto.itemName(), dto.itemType(),
+                        dto.dsScore(), dto.esScore(), dto.tfScore(), dto.pcScore(), dto.aiScore()))
                 .toList();
-
-        return consentItemRepository.saveAll(entities);
     }
 
     private void validateScoreRange(ConsentItemDto dto) {
@@ -55,18 +56,5 @@ public class ConsentItemBatchService {
             throw new InvalidConsentItemScoreException(
                     "[" + itemName + "] " + fieldName + " 값이 0~10 범위를 벗어났습니다: " + value);
         }
-    }
-
-    private ConsentItem toEntity(Company company, ConsentItemDto dto) {
-        ConsentItem entity = new ConsentItem();
-        entity.setCompany(company);
-        entity.setItemType(dto.itemType());
-        entity.setItemName(dto.itemName());
-        entity.setDsScore(dto.dsScore());
-        entity.setEsScore(dto.esScore());
-        entity.setTfScore(dto.tfScore());
-        entity.setPcScore(dto.pcScore());
-        entity.setAiScore(dto.aiScore());
-        return entity;
     }
 }

@@ -106,6 +106,11 @@ public class PolicyCrawlScheduler {
                 .isEmpty();
 
         String rawText = policyBodyCrawler.fetchCleanText(company.getPrivacyUrl());
+        // [알려진 이슈] detectAndSave()는 별도 @Transactional이라 여기서 스냅샷이 이미 커밋된다.
+        // 아래 analyzeAndSaveRisk()가 실패해도(예: LLM 재시도 소진) 이 커밋은 되돌릴 수 없어,
+        // "스냅샷은 최신인데 위험도는 재산출 안 됨" 상태가 남을 수 있다. 재설계 제안은
+        // docs/known_issues.md 참고 (다연과 논의 후 결정 — 지금은 회귀 감지 테스트만 있음:
+        // PolicyCrawlSchedulerTransactionBoundaryIntegrationTest).
         PolicySnapshot snapshot = policyChangeDetectionService.detectAndSave(company, rawText);
 
         boolean shouldAnalyze = isFirstCollection || snapshot.isChanged();
