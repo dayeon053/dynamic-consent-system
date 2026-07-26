@@ -53,7 +53,7 @@ class ConsentSyncManagerTest {
         manager.onToggle(1, false, onSuccess = { received = it })
         advanceUntilIdle()
 
-        assertEquals(23.0, received!!.newRiskScore, 0.0)
+        assertEquals(23.0, received!!.newRiskScore!!, 0.0)
     }
 
     @Test

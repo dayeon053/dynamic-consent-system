@@ -2,6 +2,7 @@ package com.dynamicconsent.domain
 
 import com.dynamicconsent.data.model.OrganizationDetail
 import com.dynamicconsent.data.model.RiskGrade
+import com.dynamicconsent.data.model.RiskVariables
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -83,6 +84,25 @@ class RiskRecalculatorTest {
         assertEquals("3.0점", maxEffect.afterScore)
         assertEquals(RiskGrade.VERY_LOW, maxEffect.afterGrade)
         assertEquals("최대 40.5점 감소", maxEffect.totalReduction)
+    }
+
+    @Test
+    fun `필수동의 위험도는 선택동의를 모두 철회해도 점수에 남는다`() {
+        val kakao = details.getValue("kakaotalk")
+        // 민감한 필수동의(DS=5)가 있는 기업을 가정
+        val withRequiredImpact = kakao.copy(
+            consentDetail = kakao.consentDetail.copy(
+                requiredConsents = kakao.consentDetail.requiredConsents.mapIndexed { index, item ->
+                    if (index == 0) item.copy(variableImpact = RiskVariables(ds = 5)) else item
+                },
+            ),
+        )
+
+        val result = RiskRecalculator.recalculate(withRequiredImpact, emptySet())
+
+        // DS=5, 나머지 최솟값 → 5 + (1×1×1.0×1.0)×2 = 7.0 (3.0이 아니어야 한다)
+        assertEquals(7.0, result.organization.riskScore, 0.0)
+        assertEquals("7.0점", result.riskAnalysis.maxEffect.afterScore)
     }
 
     @Test

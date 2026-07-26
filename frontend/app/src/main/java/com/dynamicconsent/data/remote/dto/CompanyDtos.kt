@@ -57,6 +57,7 @@ data class ConsentItemResponse(
 data class ConsentPatchResponse(
     val consentItemId: Long,
     val checked: Boolean,
-    val newRiskScore: Double,
+    /** 동의 항목이 하나도 없는 기업의 경우 서버가 null을 반환할 수 있다. */
+    val newRiskScore: Double? = null,
     val newRiskGrade: RiskGrade? = null,
 )

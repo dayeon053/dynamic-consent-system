@@ -43,7 +43,7 @@ import com.dynamicconsent.ui.theme.backgroundColor
 fun RiskOverlayContent(
     score: Double,
     grade: RiskGrade,
-    onWithdraw: () -> Unit,
+    onDetail: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -109,11 +109,11 @@ fun RiskOverlayContent(
             Spacer(Modifier.height(14.dp))
 
             Button(
-                onClick = onWithdraw,
+                onClick = onDetail,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = accent),
             ) {
-                Text("동의 철회하기", fontWeight = FontWeight.Bold)
+                Text("상세보기", fontWeight = FontWeight.Bold)
             }
         }
     }

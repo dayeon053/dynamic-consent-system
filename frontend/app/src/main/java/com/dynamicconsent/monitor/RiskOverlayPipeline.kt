@@ -44,7 +44,7 @@ class RiskOverlayPipeline(
         }
 
         Log.i(TAG, "위험도 조회 완료: ${org.name} score=${org.riskScore} grade=${org.riskGrade} → 오버레이 표시")
-        RiskOverlayService.start(appContext, org.riskScore, org.riskGrade)
+        RiskOverlayService.start(appContext, org.id, org.riskScore, org.riskGrade)
         return true
     }
 

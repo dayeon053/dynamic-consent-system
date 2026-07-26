@@ -24,4 +24,10 @@ data class ConsentToggleItem(
 data class ConsentRequiredItem(
     val id: Int,
     val title: String,
+    /**
+     * 필수동의 항목이 유발하는 5대 변수 위험 수준.
+     * 철회할 수 없는 항목이므로 위험도 계산에서 **항상** 반영된다.
+     * (기본값은 최솟값이라 값이 채워지기 전까지는 기존 점수와 동일하다.)
+     */
+    val variableImpact: RiskVariables = RiskVariables(),
 )
