@@ -61,11 +61,11 @@ class SecurityConfigIntegrationTest {
 
     @Test
     void adminApi_acceptsRequestWithAdminCredentials() throws Exception {
-        // 기본 admin 계정(admin/admin1234!, application.yml 기본값)으로 인증되면 컨트롤러까지
-        // 도달한다 — 여기서는 인가(ROLE_ADMIN) 통과만 확인하면 되므로, 바디 검증 실패(400)로
-        // 끝나도 401/403이 아니라는 것만으로 ROLE_ADMIN 통과를 증명할 수 있다.
+        // 기본 admin 계정(admin/application.yml의 admin.security.password 기본값)으로 인증되면
+        // 컨트롤러까지 도달한다 — 여기서는 인가(ROLE_ADMIN) 통과만 확인하면 되므로, 바디 검증
+        // 실패(400)로 끝나도 401/403이 아니라는 것만으로 ROLE_ADMIN 통과를 증명할 수 있다.
         mockMvc.perform(delete("/admin/companies/999999")
-                        .with(httpBasic("admin", "admin1234!")))
+                        .with(httpBasic("admin", "local-dev-only-CHANGE-ME")))
                 .andExpect(status().isNotFound()); // 존재하지 않는 companyId -> 404 (401/403이 아님 == 인가 통과)
     }
 }

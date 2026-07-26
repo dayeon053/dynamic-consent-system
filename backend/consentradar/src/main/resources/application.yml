@@ -19,7 +19,9 @@ llm:
   base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1/chat/completions}
 
 # 임시 관리자 인증 (PoC 단계, SecurityConfig 참고). User 테이블 기반 실제 로그인이 붙기 전까지만 쓴다.
+# password 기본값은 로컬 개발 전용 placeholder다 — 배포 환경에서는 반드시 ADMIN_PASSWORD
+# 환경변수로 교체할 것 (안 바꾸고 그대로 뜨면 SecurityConfig가 시작 시 WARN 로그를 남긴다).
 admin:
   security:
     username: ${ADMIN_USERNAME:admin}
-    password: ${ADMIN_PASSWORD:admin1234!}
+    password: ${ADMIN_PASSWORD:local-dev-only-CHANGE-ME}
