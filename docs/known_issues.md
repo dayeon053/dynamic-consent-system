@@ -125,7 +125,7 @@
 ### 임시 조치
 - 배달의민족: `privacy_url`을 기존 값(`https://www.baemin.com/policy/privacy`, 404) 그대로 유지.
   NULL로 바꾸지 않은 이유는 `Company.privacyUrl`이 `nullable = false`라서 NULL 저장 시
-  제약조건 위반 위험이 있기 때문.
+  제약조건 위반 위험이 있기 때문. (2026-07-26 업데이트로 값 변경, 아래 참고)
 - 토스: `privacy_url`을 `https://toss.im/privacy-policy`로 갱신은 했으나, 이 URL도
   크롤링이 안 되는 건 동일 (2026-07-19 기준 검증 제외 대상).
 
@@ -133,3 +133,73 @@
 - Headless 브라우저(Playwright/Selenium 등) 도입해 JS 렌더링 후 텍스트 추출
 - 또는 `raw_text` 길이/내용에 대한 최소 검증(예: N자 미만이면 실패로 재분류)을
   `CompanyPolicyCrawlService`에 추가해 최소한 silent failure는 걸러내기
+
+### 업데이트 (2026-07-26) — 배달의민족 URL 교체 시도, 여전히 실패
+
+`privacy_url`을 `https://www.woowahan.com/policy/10`(우아한형제들 본사 사이트)으로 변경하고
+실제 `PolicyBodyCrawler.fetchCleanText()`를 그대로 호출해 재검증했다.
+
+- **404 문제는 해결됨**: HTTP 200 정상 응답 (Cloudflare 경유, 차단/캡차 아님. 실제
+  "우아한형제들" 페이지 맞음).
+- **하지만 동일 계열의 새 문제로 여전히 실패**: 응답 본문이 `<div id="app"></div>`로
+  완전히 빈 채 내려오고, 그 뒤에 `chunk-vendors.js`/`chunk-common.js` 같은 Vue SPA
+  번들 스크립트만 붙어 있음. 실제 콘텐츠는 브라우저에서 JS 실행 후 클라이언트
+  사이드로 렌더링되는 구조라 정적 HTML에는 텍스트가 없음.
+- jsoup으로 추출 가능한 텍스트는 상단 네비게이션 메뉴 문구 158자 정도뿐이며, 이마저
+  `PolicyBodyCrawler`의 노이즈 제거 셀렉터(`nav`, `.gnb` 등)에 걸러져 최종 0자.
+  실행 결과: `PolicyCrawlException: ... 크롤링 결과 텍스트가 너무 짧습니다 (0자, 최소 100자 필요)`.
+- **결론**: URL 문제 → HTML 구조(SPA) 문제로 실패 유형만 바뀌었을 뿐 크롤링은 여전히
+  불가능. `www.woowahan.com` 도메인 자체가 Vue 기반 SPA라 이 도메인 하위 다른 경로를
+  시도해도 같은 문제가 반복될 가능성이 높다.
+- **현재 상태(당시)**: 팀 논의 결과 `privacy_url`은 새 값(`https://www.woowahan.com/policy/10`)으로
+  유지하되, 배민은 계속 크롤링 실패 대상으로 기록. 근본 해결에는 아래 하이브리드 크롤러
+  도입으로 해결됨(2026-07-26, 브랜치 `feature/hybrid-crawler`).
+
+### 해결 (2026-07-26) — `PolicyBodyCrawler` 하이브리드(Jsoup → Playwright 폴백) 구조 도입
+
+`PolicyBodyCrawler`를 다음과 같이 확장해 SPA 사이트도 자동으로 처리하도록 만들었다
+(브랜치 `feature/hybrid-crawler`, 아직 develop 미병합):
+
+1. 기존과 동일하게 Jsoup으로 먼저 시도 (빠르고 가벼움)
+2. 추출된 텍스트가 최소 길이(100자) 미만이면 SPA로 판단하고, 헤드리스 브라우저
+   (Playwright Java 1.61.0, Chromium)로 페이지를 실제 렌더링해 재시도
+   (`Page.navigate(..., WaitUntilState.NETWORKIDLE)`로 JS 렌더링이 끝날 때까지 대기)
+3. 렌더링된 HTML도 기존과 동일한 노이즈 제거 로직(`cleanText`)을 그대로 통과
+4. 헤드리스로도 최소 길이 미달이면 기존과 동일하게 `PolicyCrawlException` 발생
+
+**실제 재크롤링 결과 (2026-07-26, jshell로 실제 클래스 직접 호출해 검증)**
+
+| 기업 | URL | 결과 | 수집 길이 | 경로 |
+|---|---|---|---|---|
+| 카카오 | kakao.com/ko/privacy | 성공 | 15,168자 | Jsoup만 (헤드리스 미호출) |
+| 네이버 | policy.naver.com/rules/privacy.html | 성공 | 17,774자 | Jsoup만 (헤드리스 미호출) |
+| 배달의민족 | woowahan.com/policy/10 | **성공(신규)** | 4,444자 | Jsoup 실패(0자) → 헤드리스 폴백 성공 |
+| 토스 | toss.im/privacy-policy | **성공(신규)** | 13,435자 | Jsoup 실패(0자) → 헤드리스 폴백 성공 |
+| 당근마켓 | privacy-policy.daangn.com | 성공 | 21,438자 | Jsoup만 (헤드리스 미호출) |
+
+→ **5개 기업 전부 정상 수집 확인.** 배민/토스 모두 known_issues였던 SPA 빈 본문 문제가
+헤드리스 렌더링으로 해결됨.
+
+**소요 시간 실측 (같은 JVM 프로세스 내에서 5개 기업 전체 크롤링 기준)**
+
+| 방식 | 5개 기업 총 소요시간 | 비고 |
+|---|---|---|
+| 기존(Jsoup 단독) | 1,535ms | 3곳 성공 + 2곳 실패(SPA, 0자) |
+| 신규 하이브리드 — 브라우저 최초 기동 포함 | 13,174ms | 5곳 전부 성공, Chromium 최초 launch 비용 포함 |
+| 신규 하이브리드 — 브라우저 이미 기동된 상태(웜) | 5,006ms | 5곳 전부 성공, 실제 반복 운영 시 대표값에 가까움 |
+
+- 최초 1회만 Chromium 기동 비용(약 8~9초)이 들고, 이후에는 브라우저를 재사용하므로
+  웜 상태 기준 전체 소요시간은 기존 대비 약 **3.3배(+3.5초)** 증가. 배민/토스 개별
+  크롤링(웜 기준)은 각각 2.0초, 2.7초로 정적 크롤링(0.1초대)보다 느리지만 100자 미만
+  실패보다는 명백히 낫다.
+- 기존 3개 기업(카카오/네이버/당근마켓)은 하이브리드 적용 후에도 Jsoup 경로만 타며
+  헤드리스 브라우저가 전혀 호출되지 않음을 코드로도(`headlessCalls` 카운터 테스트) 확인 —
+  **회귀 없음.**
+
+**테스트**: `PolicyBodyCrawlerTest`에 헤드리스 폴백 성공/실패 케이스, Jsoup 성공 시
+헤드리스 미호출 검증 케이스를 추가(7→9건). 전체 unit 55건 + integration 12건 모두 통과.
+
+**남은 참고사항**: 헤드리스 브라우저(Playwright Chromium) 바이너리가 크롤링 서버에
+설치되어 있어야 한다(`playwright install chromium`, 약 300MB). 기업 수가 늘어나도 코드
+변경 없이 동일 로직이 적용되므로 구조적으로는 확장 가능하나, SPA 사이트 비중이 늘면
+브라우저 인스턴스 동시 처리량(현재는 단일 `Browser`를 순차 재사용) 튜닝이 필요할 수 있다.

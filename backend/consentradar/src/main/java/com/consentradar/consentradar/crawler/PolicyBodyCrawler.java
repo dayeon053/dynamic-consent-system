@@ -1,5 +1,12 @@
 package com.consentradar.consentradar.crawler;
 
+import com.microsoft.playwright.Browser;
+import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.PlaywrightException;
+import com.microsoft.playwright.options.WaitUntilState;
+import jakarta.annotation.PreDestroy;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -11,10 +18,18 @@ import java.io.IOException;
 import java.util.regex.Pattern;
 
 /**
- * 기업 privacy_url 페이지를 Jsoup으로 크롤링해 광고/네비게이션 등 잡음을 제거한
- * 본문 텍스트만 추출한다. 요청 실패 시 최대 3회, 1s -> 2s -> 4s backoff로 재시도한다.
- * SPA 등으로 인해 HTTP 200이 와도 실제 콘텐츠가 렌더링되지 않은 경우(예: zero-width
- * 문자만 있는 빈 본문)를 걸러내기 위해 정제된 텍스트의 최소 길이도 검증한다.
+ * 기업 privacy_url 페이지에서 본문 텍스트만 추출하는 하이브리드 크롤러.
+ *
+ * 1) 먼저 Jsoup(정적 HTML 요청)으로 시도한다 — 빠르고 가벼우며 대다수 정적 사이트는
+ *    이 단계에서 끝난다. 요청 실패 시 최대 3회, 1s -> 2s -> 4s backoff로 재시도한다.
+ * 2) Jsoup 결과 텍스트가 최소 길이({@link #MIN_MEANINGFUL_TEXT_LENGTH})에 못 미치면
+ *    (SPA라 정적 HTML에 실제 콘텐츠가 없는 경우) 헤드리스 브라우저(Playwright Chromium)로
+ *    페이지를 실제 렌더링해 재시도한다. 렌더링된 HTML은 동일한 노이즈 제거/본문 추출
+ *    로직({@link #cleanText(Document)})을 그대로 통과시킨다.
+ * 3) 헤드리스 브라우저로도 최소 길이를 못 채우면 {@link PolicyCrawlException}으로 실패 처리한다.
+ *
+ * 정적 사이트만 쓰는 기업은 1단계에서 끝나므로 기존 동작·속도에 영향이 없고, SPA 기업이
+ * 추가되어도 코드 변경 없이 자동으로 2단계가 적용된다.
  */
 @Component
 public class PolicyBodyCrawler {
@@ -24,6 +39,7 @@ public class PolicyBodyCrawler {
     private static final int MAX_ATTEMPTS = 3;
     private static final long[] BACKOFF_MS = {1000L, 2000L, 4000L};
     private static final int TIMEOUT_MS = 10_000;
+    private static final int HEADLESS_TIMEOUT_MS = 20_000;
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; ConsentradarBot/1.0)";
 
     private static final String[] NOISE_SELECTORS = {
@@ -34,19 +50,43 @@ public class PolicyBodyCrawler {
     private static final int MIN_MEANINGFUL_TEXT_LENGTH = 100;
     private static final Pattern ZERO_WIDTH_CHARS = Pattern.compile("[\\u200B\\u200C\\u200D\\uFEFF]");
 
+    // 헤드리스 브라우저는 기동 비용이 크므로(수백ms~수초) 최초 SPA 폴백이 필요할 때 한 번만
+    // 띄우고 재사용한다. 정적 사이트만 처리하는 동안에는 전혀 생성되지 않는다.
+    private volatile Playwright playwright;
+    private volatile Browser browser;
+    private final Object browserLock = new Object();
+
     public String fetchCleanText(String url) {
         Document doc = fetchWithRetry(url);
         String text = cleanText(doc);
+        int meaningfulLength = meaningfulLength(text);
 
-        int meaningfulLength = ZERO_WIDTH_CHARS.matcher(text).replaceAll("").trim().length();
-        if (meaningfulLength < MIN_MEANINGFUL_TEXT_LENGTH) {
+        if (meaningfulLength >= MIN_MEANINGFUL_TEXT_LENGTH) {
+            return text;
+        }
+
+        log.warn("[Crawler] {} Jsoup 결과 텍스트 부족({}자, 최소 {}자 필요) — SPA로 판단하고 헤드리스 브라우저로 재시도",
+                url, meaningfulLength, MIN_MEANINGFUL_TEXT_LENGTH);
+
+        String renderedHtml = fetchRenderedHtml(url);
+        Document renderedDoc = Jsoup.parse(renderedHtml, url);
+        String renderedText = cleanText(renderedDoc);
+        int renderedLength = meaningfulLength(renderedText);
+
+        if (renderedLength < MIN_MEANINGFUL_TEXT_LENGTH) {
             throw new PolicyCrawlException(
-                    url + " 크롤링 결과 텍스트가 너무 짧습니다 (" + meaningfulLength + "자, 최소 "
-                            + MIN_MEANINGFUL_TEXT_LENGTH + "자 필요). SPA 등으로 실제 콘텐츠가 렌더링되지 않았을 수 있습니다.",
+                    url + " 크롤링 결과 텍스트가 너무 짧습니다 (Jsoup " + meaningfulLength
+                            + "자, 헤드리스 브라우저 " + renderedLength + "자, 최소 " + MIN_MEANINGFUL_TEXT_LENGTH
+                            + "자 필요). SPA 등으로 실제 콘텐츠가 렌더링되지 않았을 수 있습니다.",
                     null);
         }
 
-        return text;
+        log.info("[Crawler] {} 헤드리스 브라우저로 재수집 성공 ({}자)", url, renderedLength);
+        return renderedText;
+    }
+
+    private int meaningfulLength(String text) {
+        return ZERO_WIDTH_CHARS.matcher(text).replaceAll("").trim().length();
     }
 
     Document fetchWithRetry(String url) {
@@ -70,6 +110,56 @@ public class PolicyBodyCrawler {
                 .userAgent(USER_AGENT)
                 .timeout(TIMEOUT_MS)
                 .get();
+    }
+
+    /**
+     * 헤드리스 Chromium으로 페이지를 실제 로드하고, JS 렌더링이 끝날 때까지
+     * (네트워크가 유휴 상태가 될 때까지) 기다린 뒤 최종 HTML을 반환한다.
+     */
+    protected String fetchRenderedHtml(String url) {
+        try {
+            Page page = browser().newPage(new Browser.NewPageOptions().setUserAgent(USER_AGENT));
+            try {
+                page.navigate(url, new Page.NavigateOptions()
+                        .setTimeout(HEADLESS_TIMEOUT_MS)
+                        .setWaitUntil(WaitUntilState.NETWORKIDLE));
+                return page.content();
+            } finally {
+                page.close();
+            }
+        } catch (PlaywrightException e) {
+            throw new PolicyCrawlException(url + " 헤드리스 브라우저 렌더링 실패: " + e.getMessage(), e);
+        }
+    }
+
+    private Browser browser() {
+        Browser result = browser;
+        if (result == null) {
+            synchronized (browserLock) {
+                result = browser;
+                if (result == null) {
+                    log.info("[Crawler] 헤드리스 브라우저(Playwright Chromium) 최초 기동");
+                    playwright = Playwright.create();
+                    browser = result = playwright.chromium()
+                            .launch(new BrowserType.LaunchOptions().setHeadless(true));
+                }
+            }
+        }
+        return result;
+    }
+
+    @PreDestroy
+    public void close() {
+        synchronized (browserLock) {
+            if (browser != null) {
+                browser.close();
+                browser = null;
+            }
+            if (playwright != null) {
+                playwright.close();
+                playwright = null;
+            }
+        }
     }
 
     static String cleanText(Document doc) {
