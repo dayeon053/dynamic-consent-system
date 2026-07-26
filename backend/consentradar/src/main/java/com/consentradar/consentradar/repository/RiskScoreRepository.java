@@ -17,6 +17,8 @@ public interface RiskScoreRepository extends JpaRepository<RiskScore, Long> {
     List<RiskScore> findByUser_UserIdAndCompany_CompanyIdAndIsRepresentativeTrueOrderByScoredAtAsc(
             Long userId, Long companyId);
 
+    List<RiskScore> findByCompany_CompanyId(Long companyId);
+
     /** 배치 파이프라인이 저장하는 기업 대표(전체 항목 기준, user=null) 위험도. 개인 맞춤 용도로 쓰지 말 것. */
     Optional<RiskScore> findTopByCompany_CompanyIdAndIsRepresentativeTrueOrderByScoredAtDesc(Long companyId);
 

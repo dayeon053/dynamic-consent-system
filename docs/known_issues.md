@@ -1,5 +1,99 @@
 # Known Issues
 
+## [열려있음] PolicySnapshot 저장과 위험도 재산출의 트랜잭션 경계 불일치
+
+작업일: 2026-07-26
+관련 코드: `PolicyCrawlScheduler.processCompany()`, `PolicyChangeDetectionService.detectAndSave()`,
+`RiskPipelineService.analyzeAndSaveRisk()`
+관련 테스트: `PolicyCrawlSchedulerTransactionBoundaryIntegrationTest`(회귀 감지용, 재설계는 미구현)
+
+### 증상
+`PolicyChangeDetectionService.detectAndSave()`는 그 자체로 `@Transactional`이라 스냅샷이
+즉시 커밋된다. `PolicyCrawlScheduler.processCompany()`는 그 자체는 트랜잭션이 아니라서,
+스냅샷 저장 뒤에 실행되는 `riskPipelineService.analyzeAndSaveRisk()`(역시 별도
+`@Transactional`)가 실패해도(LLM 재시도 소진 등) 이미 커밋된 스냅샷은 되돌릴 수 없다.
+
+더 심각한 파급효과: 다음 크롤링 때 이 커밋된 스냅샷과 SHA-256 해시를 비교하므로, 그 사이
+내용이 더 안 바뀌었다면 `isChanged()=false`가 되어 **이번에 놓친 위험도 재산출이 영구히
+재시도되지 않는다.** LLM 일시 장애였을 뿐인데 그 정책 변경에 대한 분석 기회 자체가
+조용히 소비돼버리는 셈이다.
+
+### 재설계 제안 (구현 안 함 — 다연과 논의 후 결정)
+1. **스냅샷 저장 + 위험도 재산출을 하나의 트랜잭션으로 묶기**: `processCompany()`에
+   `@Transactional`을 부여(또는 별도 오케스트레이션 메서드로 묶기). 가장 간단하지만,
+   크롤링(느림)과 LLM 호출(더 느림)이 한 트랜잭션 안에 들어가면서 DB 커넥션을 오래
+   점유하게 되는 트레이드오프가 있다.
+2. **PolicySnapshot에 분석 상태 컬럼 추가**(예: `analysisStatus`: PENDING/SUCCESS/FAILED):
+   해시가 같아도 이전 분석이 FAILED였으면 재시도하도록 `isChanged()` 판단 로직을 확장.
+   트랜잭션 경계는 그대로 유지하면서 "놓친 분석"을 다음 크롤링 때 다시 시도할 수 있게
+   해준다. 스키마 변경이 필요하다.
+
+현재는 회귀 감지 테스트만 추가해뒀다 — 지금 이렇게 동작한다는 걸 문서화한 것이지,
+이게 맞는 동작이라는 뜻은 아니다.
+
+---
+
+## [해결됨] ConsentItem 동시 요청 레이스 — DB unique 제약 + upsert 서비스로 방지
+
+작업일: 2026-07-26
+관련 코드: `ConsentItemUpsertService`(신규), `ConsentItemRepository`, `RiskPipelineService`,
+`ConsentItemBatchService`, 마이그레이션 `V4__add_unique_constraint_consent_item_company_item_name.sql`
+
+### 배경
+바로 아래 항목("ConsentItem 중복 insert 버그")을 itemName 기준 upsert로 고친 뒤에도,
+"조회 후 insert"라는 애플리케이션 레벨 로직만으로는 두 요청이 거의 동시에 들어오는 경우
+(인증 없는 `POST /admin/crawl/{companyId}` 더블클릭, 또는 관리자 트리거와 스케줄러 실행이
+겹치는 경우)를 막을 수 없었다. `ConsentItemBatchService.saveAll()`도 같은 패턴(dedup 없이
+무조건 insert)이라 동일한 위험이 있었다(다만 이 메서드는 현재 어디서도 호출되지 않는
+상태라 실질 영향은 없었음).
+
+### 조치
+1. `consent_item(company_id, item_name)`에 DB UNIQUE 제약 추가 — 동시 요청이 겹쳐도 DB가
+   최종적으로 중복 row를 막아준다.
+2. 두 서비스가 공유하는 `ConsentItemUpsertService`를 새로 만들어 itemName 기준 조회 →
+   있으면 update, 없으면 insert 로직을 한 곳에 모았다.
+3. **시도했다가 되돌린 것**: insert가 unique 제약 위반으로 실패하면 같은 트랜잭션 안에서
+   재조회 후 update로 전환하는 "우아한 fallback"을 처음에 구현했으나, 실제로 통합
+   테스트에서 `org.hibernate.AssertionFailure: ... null identifier (this can happen if
+   the session is flushed after an exception occurs)`가 재현됐다. Hibernate 세션은 flush
+   실패 후 계속 쓰기에 안전하지 않다는 걸 실측으로 확인한 것 — 그래서 이 fallback은
+   제거하고, unique 제약 위반은 그대로 던져 트랜잭션 전체가 롤백되게 뒀다. 레이스에 진
+   요청은 500으로 실패하고 재시도하면 된다. DB 제약이 실질적인 안전장치이고, 이건
+   의도적으로 단순하게 남겨둔 것이다.
+
+## [해결됨] RiskPipelineService가 스케줄러에 연결된 뒤 드러난 ConsentItem 중복 insert 버그
+
+작업일: 2026-07-26
+관련 코드: `RiskPipelineService.analyzeAndSaveRisk()`, `PolicyCrawlScheduler.processCompany()`
+관련 PR: #24 (다연 리뷰)
+
+### 배경 — 이전 서술 정정
+과거 이 문서/CLAUDE.md에는 "`RiskPipelineService`는 스케줄러에서 실제로 호출되지 않는
+죽은 코드"라고 적혀 있었다(스프린트2 시점 감사 기준). 이는 더 이상 사실이 아니다.
+`PolicyCrawlScheduler.processCompany()`가 이미 `riskPipelineService.analyzeAndSaveRisk()`를
+호출하도록 연결되어 있고, 최초 수집이거나 약관이 실제로 변경된 기업에 한해 매일 새벽 3시
+스케줄러 실행 시 자동으로 트리거된다.
+
+### 증상
+`analyzeAndSaveRisk()`가 매 호출마다 `ConsentItem`을 조건 없이 `new` + `save()`만 해서,
+같은 회사에 대해 약관 변경이 감지될 때마다 `ConsentItem`이 중복 insert됐다. 스케줄러가
+실제로 연결되어 있었기 때문에 이건 이론상 문제가 아니라 **매일 새벽 3시 실행마다 실제로
+발생하던 라이브 버그**였다. 단순히 기존 항목을 삭제 후 재삽입하는 방식으로 고치면
+`ConsentItem`—`UserConsentCheck` 간 `@OneToMany(cascade = ALL)` 때문에 사용자 동의
+이력(`UserConsentCheck`)까지 함께 삭제되는 부작용이 있어 그 방식은 사용할 수 없었다.
+
+### 조치
+`analyzeAndSaveRisk()`를 itemName 기준 upsert로 수정(PR #24): 기존 `ConsentItem`이 있으면
+해당 row를 재사용해 `itemType`/`ds`/`es`/`tf`/`pc`/`ai` 점수만 갱신하고, 없으면 새로 생성한다.
+삭제 후 재삽입이 아니므로 `UserConsentCheck`는 보존된다. 재현 테스트
+(`RiskPipelineServiceIntegrationTest`)로 중복 생성 안 됨 + `UserConsentCheck` 생존을 검증함.
+
+### 범위 밖 (TODO)
+이번 크롤링 결과에 더 이상 나타나지 않는 예전 `ConsentItem`(회사가 약관에서 뺀 항목)을
+삭제할지 만료 플래그로 남길지는 이번 수정 범위 밖으로 남겨뒀다 — 별도로 논의 후 결정.
+
+---
+
 ## 배달의민족·토스 개인정보처리방침 페이지 — Jsoup 크롤링 불가 (SPA 구조)
 
 작업일: 2026-07-19

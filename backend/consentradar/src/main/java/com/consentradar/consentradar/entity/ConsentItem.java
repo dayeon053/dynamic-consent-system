@@ -8,7 +8,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "consent_item")
+@Table(name = "consent_item",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_consent_item_company_item_name",
+                columnNames = {"company_id", "item_name"}))
 @Getter
 @Setter
 @NoArgsConstructor
