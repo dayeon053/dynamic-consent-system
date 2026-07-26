@@ -1,5 +1,6 @@
 package com.consentradar.consentradar.api;
 
+import com.consentradar.consentradar.api.dto.CompanyRiskResponse;
 import com.consentradar.consentradar.api.dto.ConsentItemResponse;
 import com.consentradar.consentradar.api.dto.ConsentPatchResponse;
 import com.consentradar.consentradar.entity.Company;
@@ -285,10 +286,116 @@ class ConsentApiServiceTest {
         assertEquals(0, BigDecimal.valueOf(45.5).compareTo(response.getNewRiskScore()));
     }
 
+    // ---- getCompaniesSortedByRisk ----
+
+    @Test
+    void getCompaniesSortedByRisk_sortsCompaniesByDescendingPersonalRiskScore() {
+        Company lowRiskCompany = company(100L, "안전기업");
+        Company highRiskCompany = company(200L, "위험기업");
+        ConsentItem lowRiskItem = consentItemForCompany(1L, lowRiskCompany, ConsentItem.ItemType.REQUIRED,
+                1, 1, 1, 1.0, 1.0); // 최솟값 3.0
+        ConsentItem highRiskItem = consentItemForCompany(2L, highRiskCompany, ConsentItem.ItemType.REQUIRED,
+                5, 3, 3, 1.5, 1.5); // 최댓값 45.5
+
+        when(companyRepository.findAll()).thenReturn(List.of(lowRiskCompany, highRiskCompany));
+        when(consentItemRepository.findByCompany_CompanyId(100L)).thenReturn(List.of(lowRiskItem));
+        when(consentItemRepository.findByCompany_CompanyId(200L)).thenReturn(List.of(highRiskItem));
+        when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, 100L))
+                .thenReturn(List.of());
+        when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, 200L))
+                .thenReturn(List.of());
+
+        List<CompanyRiskResponse> result = consentApiService.getCompaniesSortedByRisk(USER_ID);
+
+        assertEquals(2, result.size());
+        assertEquals(200L, result.get(0).getCompanyId(), "위험도가 높은 기업이 먼저 나와야 한다");
+        assertEquals(100L, result.get(1).getCompanyId());
+    }
+
+    @Test
+    void getCompaniesSortedByRisk_sortsCompanyWithNoConsentItemsLast() {
+        Company noItemsCompany = company(300L, "동의항목없는기업");
+        Company normalCompany = company(100L, "정상기업");
+        ConsentItem item = consentItemForCompany(1L, normalCompany, ConsentItem.ItemType.REQUIRED,
+                1, 1, 1, 1.0, 1.0); // 3.0 (양수 최솟값)
+
+        when(companyRepository.findAll()).thenReturn(List.of(noItemsCompany, normalCompany));
+        when(consentItemRepository.findByCompany_CompanyId(300L)).thenReturn(List.of()); // 동의항목 자체가 없음
+        when(consentItemRepository.findByCompany_CompanyId(100L)).thenReturn(List.of(item));
+        when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, 100L))
+                .thenReturn(List.of());
+
+        List<CompanyRiskResponse> result = consentApiService.getCompaniesSortedByRisk(USER_ID);
+
+        assertEquals(100L, result.get(0).getCompanyId(), "점수가 있는 기업이 먼저 나와야 한다");
+        assertEquals(300L, result.get(1).getCompanyId(), "위험도를 계산할 수 없는 기업(null)은 맨 뒤로 밀려야 한다");
+        assertNull(result.get(1).getRiskScore());
+        assertNull(result.get(1).getRiskGrade());
+    }
+
+    @Test
+    void getCompaniesSortedByRisk_returnsEmptyList_whenNoCompaniesExist() {
+        when(companyRepository.findAll()).thenReturn(List.of());
+
+        List<CompanyRiskResponse> result = consentApiService.getCompaniesSortedByRisk(USER_ID);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void getCompaniesSortedByRisk_mapsCompanyFieldsAndComputedRisk() {
+        Company company = company(100L, "테스트기업");
+        company.setPackageName("com.test.app");
+        company.setPrivacyUrl("https://test.com/privacy");
+        company.setIsmsCertified(true);
+        // DS=5, ES=1,TF=1,PC=1.0,AI=1.0 -> 5 + (1*1*1*1)*2 = 7.0 -> LOW
+        ConsentItem item = consentItemForCompany(1L, company, ConsentItem.ItemType.REQUIRED,
+                5, 1, 1, 1.0, 1.0);
+
+        when(companyRepository.findAll()).thenReturn(List.of(company));
+        when(consentItemRepository.findByCompany_CompanyId(100L)).thenReturn(List.of(item));
+        when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, 100L))
+                .thenReturn(List.of());
+
+        CompanyRiskResponse response = consentApiService.getCompaniesSortedByRisk(USER_ID).get(0);
+
+        assertEquals(100L, response.getCompanyId());
+        assertEquals("테스트기업", response.getCompanyName());
+        assertEquals("com.test.app", response.getPackageName());
+        assertEquals("https://test.com/privacy", response.getPrivacyUrl());
+        assertTrue(response.isIsmsCertified());
+        assertEquals(0, BigDecimal.valueOf(7.0).compareTo(response.getRiskScore()));
+        assertEquals("LOW", response.getRiskGrade());
+    }
+
     private User user() {
         User user = new User();
         user.setUserId(USER_ID);
         return user;
+    }
+
+    private Company company(Long id, String name) {
+        Company company = new Company();
+        company.setCompanyId(id);
+        company.setCompanyName(name);
+        company.setPackageName("com.example." + id);
+        company.setPrivacyUrl("https://example.com/" + id);
+        return company;
+    }
+
+    private ConsentItem consentItemForCompany(Long id, Company company, ConsentItem.ItemType type,
+                                               int ds, int es, int tf, double pc, double ai) {
+        ConsentItem item = new ConsentItem();
+        item.setConsentItemId(id);
+        item.setItemType(type);
+        item.setItemName("항목" + id);
+        item.setDsScore(ds);
+        item.setEsScore(es);
+        item.setTfScore(tf);
+        item.setPcScore(pc);
+        item.setAiScore(ai);
+        item.setCompany(company);
+        return item;
     }
 
     private ConsentItem consentItem(Long id, ConsentItem.ItemType type) {
