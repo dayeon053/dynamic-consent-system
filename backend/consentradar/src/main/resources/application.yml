@@ -17,3 +17,9 @@ llm:
   api-key: ${OPENAI_API_KEY:}
   model: ${OPENAI_MODEL:gpt-4o-mini}
   base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1/chat/completions}
+
+# 임시 관리자 인증 (PoC 단계, SecurityConfig 참고). User 테이블 기반 실제 로그인이 붙기 전까지만 쓴다.
+admin:
+  security:
+    username: ${ADMIN_USERNAME:admin}
+    password: ${ADMIN_PASSWORD:admin1234!}
