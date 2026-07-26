@@ -6,20 +6,26 @@ import com.consentradar.consentradar.entity.Company;
 import com.consentradar.consentradar.entity.ConsentItem;
 import com.consentradar.consentradar.entity.PolicySnapshot;
 import com.consentradar.consentradar.entity.RiskScore;
+import com.consentradar.consentradar.entity.User;
+import com.consentradar.consentradar.entity.UserConsentCheck;
 import com.consentradar.consentradar.repository.CompanyRepository;
 import com.consentradar.consentradar.repository.ConsentItemRepository;
 import com.consentradar.consentradar.repository.PolicySnapshotRepository;
 import com.consentradar.consentradar.repository.RiskScoreRepository;
+import com.consentradar.consentradar.repository.UserConsentCheckRepository;
+import com.consentradar.consentradar.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -59,7 +65,14 @@ class RiskPipelineServiceIntegrationTest {
     @Autowired
     private RiskPipelineService riskPipelineService;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private UserConsentCheckRepository userConsentCheckRepository;
+
     private Long testCompanyId;
+    private Long testUserId;
 
     @BeforeEach
     void setUp() {
@@ -76,6 +89,10 @@ class RiskPipelineServiceIntegrationTest {
     @AfterEach
     void tearDown() {
         companyRepository.findById(testCompanyId).ifPresent(this::cleanupCompany);
+        if (testUserId != null) {
+            userRepository.deleteById(testUserId);
+            testUserId = null;
+        }
     }
 
     private void cleanupCompany(Company company) {
@@ -125,5 +142,56 @@ class RiskPipelineServiceIntegrationTest {
         // DB에도 실제로 반영됐는지 재조회로 재확인
         List<RiskScore> scoresInDb = riskScoreRepository.findByCompany_CompanyId(testCompanyId);
         assertEquals(3, scoresInDb.size());
+    }
+
+    /**
+     * [버그 재현 → 회귀 방지] 같은 회사에 대해 analyzeAndSaveRisk()를 두 번 호출하는 상황
+     * (= 스케줄러가 약관 변경을 감지할 때마다 반복되는 상황)에서 ConsentItem이 itemName 기준으로
+     * upsert되어야 하고, 기존 ConsentItem에 걸린 UserConsentCheck(사용자 동의 이력)는 삭제되지
+     * 않아야 한다. PR #24 리뷰(다연님 지적) 재현용 — 수정 전에는 ConsentItem이 2건→4건으로
+     * 중복 생성되어 이 테스트가 실패했다.
+     */
+    @Test
+    void analyzeAndSaveRisk_calledTwiceForSameCompany_doesNotDuplicateConsentItems() {
+        Company company = companyRepository.findById(testCompanyId).orElseThrow();
+
+        riskPipelineService.analyzeAndSaveRisk(company, MOCK_POLICY_TEXT);
+        List<ConsentItem> afterFirstCall = consentItemRepository.findByCompany_CompanyId(testCompanyId);
+        assertEquals(2, afterFirstCall.size(), "최초 분석 시 필수 1 + 선택 1 = 2건이 저장되어야 한다");
+
+        Map<String, Long> idsAfterFirstCall = afterFirstCall.stream()
+                .collect(Collectors.toMap(ConsentItem::getItemName, ConsentItem::getConsentItemId));
+
+        // 첫 번째 분석으로 만들어진 ConsentItem 중 하나에 사용자 동의 이력(UserConsentCheck)을 남겨둔다.
+        ConsentItem firstItem = afterFirstCall.get(0);
+
+        User user = new User();
+        ReflectionTestUtils.setField(user, "email", "pipeline-test-" + System.nanoTime() + "@example.com");
+        ReflectionTestUtils.setField(user, "password", "test-password");
+        ReflectionTestUtils.setField(user, "nickname", "pipeline-tester");
+        testUserId = userRepository.save(user).getUserId();
+
+        UserConsentCheck consentCheck = new UserConsentCheck();
+        consentCheck.setUser(user);
+        consentCheck.setConsentItem(firstItem);
+        consentCheck.setChecked(true);
+        Long consentCheckId = userConsentCheckRepository.save(consentCheck).getCheckId();
+
+        riskPipelineService.analyzeAndSaveRisk(company, MOCK_POLICY_TEXT);
+        List<ConsentItem> afterSecondCall = consentItemRepository.findByCompany_CompanyId(testCompanyId);
+
+        assertEquals(2, afterSecondCall.size(),
+                "같은 회사를 재분석해도 ConsentItem이 중복 생성되지 않고 기존 항목(itemName 기준)이 갱신되어야 한다");
+
+        Map<String, Long> idsAfterSecondCall = afterSecondCall.stream()
+                .collect(Collectors.toMap(ConsentItem::getItemName, ConsentItem::getConsentItemId));
+        assertEquals(idsAfterFirstCall.keySet(), idsAfterSecondCall.keySet(), "itemName 구성이 그대로 유지되어야 한다");
+        assertEquals(idsAfterFirstCall, idsAfterSecondCall,
+                "기존 ConsentItem이 삭제 후 재삽입되지 않고 같은 row가 갱신되어야 한다 (consentItemId 불변)");
+
+        // UserConsentCheck(사용자 동의 이력)가 살아있어야 한다 — 삭제 후 재삽입 방식이었다면
+        // cascade(ALL)로 이 레코드도 함께 사라졌을 것이다.
+        assertTrue(userConsentCheckRepository.findById(consentCheckId).isPresent(),
+                "재분석 후에도 기존 UserConsentCheck(사용자 동의 이력)가 유지되어야 한다");
     }
 }
