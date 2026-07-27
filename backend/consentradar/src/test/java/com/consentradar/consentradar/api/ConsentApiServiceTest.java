@@ -3,6 +3,7 @@ package com.consentradar.consentradar.api;
 import com.consentradar.consentradar.api.dto.CompanyRiskResponse;
 import com.consentradar.consentradar.api.dto.ConsentItemResponse;
 import com.consentradar.consentradar.api.dto.ConsentPatchResponse;
+import com.consentradar.consentradar.consenthistory.UserConsentHistoryRecorder;
 import com.consentradar.consentradar.entity.Company;
 import com.consentradar.consentradar.entity.ConsentItem;
 import com.consentradar.consentradar.entity.RiskScore;
@@ -41,6 +42,7 @@ class ConsentApiServiceTest {
     @Mock private UserConsentCheckRepository userConsentCheckRepository;
     @Mock private CompanyRepository companyRepository;
     @Mock private RiskScoreRepository riskScoreRepository;
+    @Mock private UserConsentHistoryRecorder userConsentHistoryRecorder;
 
     private ConsentApiService consentApiService;
 
@@ -55,7 +57,8 @@ class ConsentApiServiceTest {
                 new PersonalRiskCalculator(consentItemRepository, userConsentCheckRepository);
         consentApiService = new ConsentApiService(
                 userRepository, consentItemRepository, userConsentCheckRepository,
-                companyRepository, riskScoreRepository, personalRiskCalculator);
+                companyRepository, riskScoreRepository, personalRiskCalculator,
+                userConsentHistoryRecorder);
     }
 
     @Test

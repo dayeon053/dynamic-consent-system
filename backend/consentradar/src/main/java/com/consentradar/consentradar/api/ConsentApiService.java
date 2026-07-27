@@ -3,6 +3,7 @@ package com.consentradar.consentradar.api;
 import com.consentradar.consentradar.api.dto.CompanyRiskResponse;
 import com.consentradar.consentradar.api.dto.ConsentItemResponse;
 import com.consentradar.consentradar.api.dto.ConsentPatchResponse;
+import com.consentradar.consentradar.consenthistory.UserConsentHistoryRecorder;
 import com.consentradar.consentradar.entity.*;
 import com.consentradar.consentradar.repository.*;
 import com.dynamicconsent.model.RiskResult;
@@ -29,19 +30,22 @@ public class ConsentApiService {
     private final CompanyRepository companyRepository;
     private final RiskScoreRepository riskScoreRepository;
     private final PersonalRiskCalculator personalRiskCalculator;
+    private final UserConsentHistoryRecorder userConsentHistoryRecorder;
 
     public ConsentApiService(UserRepository userRepository,
                              ConsentItemRepository consentItemRepository,
                              UserConsentCheckRepository userConsentCheckRepository,
                              CompanyRepository companyRepository,
                              RiskScoreRepository riskScoreRepository,
-                             PersonalRiskCalculator personalRiskCalculator) {
+                             PersonalRiskCalculator personalRiskCalculator,
+                             UserConsentHistoryRecorder userConsentHistoryRecorder) {
         this.userRepository              = userRepository;
         this.consentItemRepository       = consentItemRepository;
         this.userConsentCheckRepository  = userConsentCheckRepository;
         this.companyRepository           = companyRepository;
         this.riskScoreRepository         = riskScoreRepository;
         this.personalRiskCalculator      = personalRiskCalculator;
+        this.userConsentHistoryRecorder  = userConsentHistoryRecorder;
     }
 
     /**
@@ -70,6 +74,11 @@ public class ConsentApiService {
      * 저장된다. (재시도는 이 메서드를 다시 호출하는 쪽인 {@link com.consentradar.consentradar.api.ConsentApiController}가
      * 담당한다 — 같은 트랜잭션 안에서 실패 후 재시도하면 세션이 오염되어 불가능하고,
      * 이 메서드 자체는 프록시를 통해 매번 새 트랜잭션으로 호출돼야 하기 때문이다.)
+     *
+     * [수정 이력 — 동의 변경 이력 조회 API 추가]
+     * UserConsentCheck는 "현재 상태"만 덮어써 보관해 이력이 남지 않으므로, 상태를 바꿀 때마다
+     * {@link UserConsentHistoryRecorder}로 별도 이력 테이블에 한 건씩 append한다. 개인 맞춤
+     * 위험도 계산은 여전히 UserConsentCheck(현재 상태)만 조회하는 기존 구조 그대로다.
      */
     @Transactional
     public ConsentPatchResponse toggleConsent(Long userId, Long consentItemId) {
@@ -91,6 +100,7 @@ public class ConsentApiService {
 
         check.setChecked(!check.isChecked());
         userConsentCheckRepository.save(check);
+        userConsentHistoryRecorder.record(user, consentItem, check.isChecked());
 
         Company company = consentItem.getCompany();
         RiskResult newResult = safeCalculate(userId, company.getCompanyId());
