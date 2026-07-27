@@ -13,6 +13,10 @@ public interface RiskScoreRepository extends JpaRepository<RiskScore, Long> {
     boolean existsByUser_UserIdAndCompany_CompanyIdAndScoredAtAndIsRepresentativeTrue(
             Long userId, Long companyId, LocalDate scoredAt);
 
+    /** (user, company, 날짜) 조합의 대표 row 개수. 동시 토글 경합 시 중복 insert 여부 검증용. */
+    long countByUser_UserIdAndCompany_CompanyIdAndScoredAtAndIsRepresentativeTrue(
+            Long userId, Long companyId, LocalDate scoredAt);
+
     /** 사용자+기업의 개인 맞춤 대표 위험도 날짜별 히스토리 (오래된 순). */
     List<RiskScore> findByUser_UserIdAndCompany_CompanyIdAndIsRepresentativeTrueOrderByScoredAtAsc(
             Long userId, Long companyId);
