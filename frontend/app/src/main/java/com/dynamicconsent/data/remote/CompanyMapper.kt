@@ -28,6 +28,7 @@ object CompanyMapper {
     /** GET /companies 항목 → 리스트 카드용 요약. 위험도는 서버 산출값을 그대로 쓴다. */
     fun toOrganization(response: CompanyResponse): Organization = Organization(
         id = response.companyId.toString(),
+        packageName = response.packageName,
         name = response.companyName,
         category = "기타",
         riskScore = response.riskScore ?: RiskCalculator.MIN_SCORE,

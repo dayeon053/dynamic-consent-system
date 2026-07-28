@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,7 +36,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.dynamicconsent.monitor.AppLaunchMonitorService
 import com.dynamicconsent.monitor.RiskOverlayPipeline
-import com.dynamicconsent.monitor.WatchedApps
 import com.dynamicconsent.monitor.hasUsageAccess
 import com.dynamicconsent.monitor.isIgnoringBatteryOptimizations
 import com.dynamicconsent.monitor.openUsageAccessSettings
@@ -67,6 +67,13 @@ fun MonitorScreen(
     var overlayGranted by remember { mutableStateOf(canDrawOverlays(context)) }
     var monitoring by remember { mutableStateOf(AppLaunchMonitorService.isRunning) }
     var batteryExempt by remember { mutableStateOf(isIgnoringBatteryOptimizations(context)) }
+
+    // 감시 대상은 서버(또는 mock) 기관 목록에서 런타임에 구성된다.
+    var watchedPackages by remember { mutableStateOf<Set<String>>(emptySet()) }
+    LaunchedEffect(Unit) {
+        runCatching { pipeline.prepareWatchedApps() }
+        watchedPackages = pipeline.watchedPackages
+    }
 
     // 설정 화면에 다녀오면(ON_RESUME) 권한 상태를 다시 읽는다
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -136,8 +143,8 @@ fun MonitorScreen(
 
             Text("2. 백그라운드 감시", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
             Text(
-                "감시 대상: ${WatchedApps.watchedPackages.joinToString()}\n" +
-                    "감시 중에 카카오톡을 실행하면 위험도 팝업이 뜹니다.\n" +
+                "감시 대상: ${watchedPackages.ifEmpty { setOf("불러오는 중…") }.joinToString()}\n" +
+                    "감시 중에 대상 앱을 실행하면 위험도 팝업이 뜹니다.\n" +
                     "한 번 켜두면 재부팅하거나 최근 앱에서 앱을 지워도 자동으로 다시 시작됩니다.",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextSecondary,
@@ -161,14 +168,18 @@ fun MonitorScreen(
             HorizontalDivider()
 
             Text("3. 테스트", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
+            val testPackage = watchedPackages.firstOrNull()
             OutlinedButton(
                 onClick = {
-                    scope.launch { pipeline.showOverlayFor(WatchedApps.KAKAOTALK_PACKAGE) }
+                    testPackage?.let { pkg -> scope.launch { pipeline.showOverlayFor(pkg) } }
                 },
-                enabled = overlayGranted,
+                enabled = overlayGranted && testPackage != null,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("테스트 오버레이 바로 띄우기 (카카오톡 기준)")
+                Text(
+                    if (testPackage != null) "테스트 오버레이 바로 띄우기 ($testPackage)"
+                    else "감시 대상을 불러오는 중…",
+                )
             }
         }
     }

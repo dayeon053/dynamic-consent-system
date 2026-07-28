@@ -1,6 +1,7 @@
 [
   {
     "id": "kakaotalk",
+    "packageName": "com.kakao.talk",
     "name": "카카오톡",
     "category": "SNS",
     "riskScore": 43.5,
@@ -10,6 +11,7 @@
   },
   {
     "id": "toss",
+    "packageName": "viva.republica.toss",
     "name": "토스",
     "category": "금융",
     "riskScore": 32.0,
@@ -19,6 +21,7 @@
   },
   {
     "id": "netflix",
+    "packageName": "com.netflix.mediaclient",
     "name": "넷플릭스",
     "category": "기타",
     "riskScore": 21.0,

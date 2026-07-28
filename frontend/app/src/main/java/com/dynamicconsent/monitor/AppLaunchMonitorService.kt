@@ -57,11 +57,19 @@ class AppLaunchMonitorService : Service() {
             return START_STICKY
         }
 
-        val detector = AppLaunchDetector(this)
         val pipeline = RiskOverlayPipeline(applicationContext)
+        val detector = AppLaunchDetector(
+            context = this,
+            watchedPackagesProvider = { pipeline.watchedPackages },
+        )
 
         monitorJob = serviceScope.launch {
-            Log.i(TAG, "앱 실행 감시 시작 (poll=${POLL_INTERVAL_MILLIS}ms, 대상=${WatchedApps.watchedPackages})")
+            // 감시 대상 목록을 먼저 받아온다. 실패해도 루프는 돌며,
+            // 파이프라인이 재시도 간격(60초)을 지켜 다시 시도한다.
+            runCatching { pipeline.prepareWatchedApps() }
+                .onFailure { Log.e(TAG, "감시 대상 초기 로드 실패", it) }
+
+            Log.i(TAG, "앱 실행 감시 시작 (poll=${POLL_INTERVAL_MILLIS}ms, 대상=${pipeline.watchedPackages})")
             while (isActive) {
                 runCatching {
                     detector.pollLaunchedWatchedApp()?.let { pkg ->
