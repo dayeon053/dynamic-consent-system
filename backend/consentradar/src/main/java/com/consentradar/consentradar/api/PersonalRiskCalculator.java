@@ -35,10 +35,17 @@ public class PersonalRiskCalculator {
         this.userConsentCheckRepository = userConsentCheckRepository;
     }
 
-    // TODO(PR #30 머지 후 처리): 개인 맞춤 위험도 정본 합산 방식이 combineImpacts로
-    // 통일되기로 팀 결정됨(docs/personal_risk_server_decision.md). PR #30
-    // (feature/combine-impacts-canonical-model)이 develop에 머지되면 아래
-    // calculateMax를 combineImpacts로 교체할 것.
+    /**
+     * 필수동의 전체 + 이 사용자가 isChecked=true로 체크한 선택동의만으로 위험도를 계산한다.
+     * (F2: "필수동의 + 사용자가 실제 체크한 선택동의를 기준으로 산출", 워스트 케이스 아님)
+     *
+     * [수정 이력 — 2026-07-26 팀 결정] 대표값 산출 방식을 calculateMax(항목별 점수의
+     * 최댓값)에서 combineImpacts(변수별 최댓값 합성)로 교체했다. 위험도 산정 모델 설계
+     * 문서(카카오톡 분석 예시)가 DS/ES 등을 "여러 항목 중 변수별 최댓값"으로 합성하는
+     * combineImpacts 방식을 정본으로 삼고 있어서, 지금까지 FE(RiskCalculator.kt
+     * combineImpacts)와 다르게 동작하던 서버 쪽을 정본에 맞춰 통일했다. 자세한 배경은
+     * docs/personal_risk_server_decision.md 참고.
+     */
     public RiskResult calculate(Long userId, Long companyId) {
         List<ConsentItem> allItems = consentItemRepository.findByCompany_CompanyId(companyId);
         if (allItems.isEmpty()) {
@@ -54,7 +61,7 @@ public class PersonalRiskCalculator {
                 .collect(Collectors.toList());
 
         // 필수동의조차 없는 비정상 데이터인 경우를 대비한 방어 코드
-        return personalInputs.isEmpty() ? null : RiskCalculator.calculateMax(personalInputs);
+        return personalInputs.isEmpty() ? null : RiskCalculator.combineImpacts(personalInputs);
     }
 
     public Set<Long> findCheckedOptionalItemIds(Long userId, Long companyId) {

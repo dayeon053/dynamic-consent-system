@@ -11,7 +11,7 @@
 | 항목 | 원안 | 실제 상태 |
 |---|---|---|
 | Base URL | `https://api.privacyguard.com/v1` | **미적용 (PoC 단계)**. 실제 배포 도메인 없음. 로컬 개발 서버는 `http://localhost:8080` (별도 context-path 설정 없음, 위 URL들이 곧 실제 경로) |
-| 인증 방식 | Bearer Token (Authorization 헤더) | **미적용 (PoC 단계)**. Spring Security 등 인증 계층이 프로젝트에 없어 모든 엔드포인트가 인증 없이 호출 가능하다 |
+| 인증 방식 | Bearer Token (Authorization 헤더) | 일반 API(`companies`, `consents`, `risk-history` 등)는 여전히 인증 없음(PoC). 단, `/admin/**`는 Sprint 04(PR #27, `SecurityConfig.java`)에서 HTTP Basic + `ROLE_ADMIN` 인증이 추가됨 (2026-07-26) |
 | 공통 응답 형식 | `{ "status": 200, "data": {...}, "message": "success" }` | **미적용**. 전부 `ResponseEntity<T>` 또는 `List<T>`를 그대로 반환하며 래핑 없이 응답 바디가 곧 `data`에 해당하는 내용이다. 예: `GET /companies`는 `{status:200,data:[...]}`가 아니라 `[...]` 배열을 바로 반환 |
 
 ---
@@ -165,10 +165,86 @@
 
 ## 2-6. 크롤링 수동 트리거 (관리자)
 
-- **상태**: **미구현 (계획 단계)**
-- **Method**: POST
-- **URL**: `/admin/crawl/{company_id}`
-- **설명**: 특정 기업 대상 수동 크롤링 즉시 실행. 관리자 권한 필요
-- **응답 예시**: `{ "status": "triggered", "company_id": 1, "triggered_at": "2026-06-29T10:00:00Z" }`
+- **상태**: **구현됨** (`AdminCrawlController.triggerCrawl`, PR #24/#26/#27)
+- **Method**: POST — 원안과 일치
+- **URL**: `/admin/crawl/{companyId}` (원안의 `company_id`가 실제로는 camelCase `companyId`)
+- **인증**: `ROLE_ADMIN` 필요 (HTTP Basic — 공통 사항 참고). 미인증/오인증 시 401
+- **설명**: 특정 기업 1건에 대해 크롤링 → 변경감지 → (최초 수집이거나 실제로 약관이 변경됐으면) 위험도 재산출까지 동기적으로 즉시 실행한다(`PolicyCrawlScheduler.runForCompany`). 원안의 "비동기 트리거 후 상태만 반환" 방식이 아니라, 요청이 끝날 때까지 크롤링·(필요 시) LLM 호출·DB 저장이 전부 완료된 뒤 결과를 응답한다.
+- **응답**: `AdminCrawlTriggerResponse`
+- **응답 예시 — 성공 (변경 감지 + 위험도 재산출됨)**:
+  ```json
+  {
+    "companyId": 1,
+    "companyName": "카카오",
+    "changed": true,
+    "riskAnalysisTriggered": true,
+    "success": true,
+    "message": "triggered"
+  }
+  ```
+  - `changed`: 이번 크롤링에서 전일 대비 약관 변경이 감지됐는지
+  - `riskAnalysisTriggered`: 최초 수집이거나 `changed=true`라서 LLM 재분석까지 실행했는지 (변경이 없으면 `false`이고 크롤링 확인만 하고 끝남)
+- **응답 예시 — 실패 (존재하지 않는 companyId, HTTP 404)**:
+  ```json
+  {
+    "companyId": 999,
+    "companyName": null,
+    "changed": false,
+    "riskAnalysisTriggered": false,
+    "success": false,
+    "message": "존재하지 않는 companyId: 999"
+  }
+  ```
+  - 그 외 크롤링/LLM 호출 중 예외가 나면 HTTP 500 + 동일한 실패 형식(`success: false`, `message`에 예외 메시지)으로 응답한다.
 
-(크롤링 실행 로직 자체는 `PolicyCrawlScheduler.runPipeline()`으로 이미 분리되어 있어 컨트롤러만 얹으면 재사용 가능하지만, 관리자 인증/권한 체계가 없는 상태라 API 자체는 아직 미구현.)
+---
+
+## 2-7. 관리자 기업 등록/삭제
+
+- **상태**: **구현됨** (`AdminController`, PR #27) — 원안에 없던 신규 엔드포인트(1-9 관리자 기업 관리)
+- **인증**: `ROLE_ADMIN` 필요 (HTTP Basic — 공통 사항 참고)
+
+### `POST /admin/companies` — 기업 등록
+
+- **Request Body**: `CreateCompanyRequest`
+  ```json
+  {
+    "companyName": "카카오",
+    "packageName": "com.kakao.talk",
+    "privacyUrl": "https://www.kakaocorp.com/page/detail/9610",
+    "ismsCertified": false
+  }
+  ```
+  - `companyName`/`packageName`/`privacyUrl`은 필수(비어있으면 400)
+- **응답**: `CompanyResponse` (HTTP 201)
+  ```json
+  {
+    "companyId": 6,
+    "companyName": "카카오",
+    "packageName": "com.kakao.talk",
+    "privacyUrl": "https://www.kakaocorp.com/page/detail/9610",
+    "ismsCertified": false,
+    "createdAt": "2026-07-26T10:00:00",
+    "updatedAt": "2026-07-26T10:00:00"
+  }
+  ```
+- **에러 케이스**:
+  | 상황 | 상태 코드 | 응답 |
+  |---|---|---|
+  | 필수값 누락/공백 | 400 | `AdminErrorResponse` (`IllegalArgumentException`) |
+  | `packageName` 중복(이미 등록된 기업) | 409 | `AdminErrorResponse` (`CompanyConflictException`) |
+
+### `DELETE /admin/companies/{companyId}` — 기업 삭제
+
+- **응답**: 성공 시 본문 없음 (HTTP 204)
+- **설명**: `Company`에 `ConsentItem`/`PolicySnapshot`/`RiskScore`가 `cascade=ALL`로 걸려있어 삭제 시 연관 데이터가 통째로 같이 지워질 수 있다. 이를 막기 위해 **연관 데이터가 하나라도 있으면 삭제를 거부**한다.
+- **에러 케이스**:
+  | 상황 | 상태 코드 | 응답 |
+  |---|---|---|
+  | 존재하지 않는 companyId | 404 | `AdminErrorResponse` (`IllegalArgumentException`) |
+  | 연관된 `ConsentItem`/`PolicySnapshot`/`RiskScore`가 하나라도 있음 | 409 | `AdminErrorResponse` (`CompanyConflictException`) — 연관 데이터를 먼저 정리해야 함 |
+
+### `AdminErrorResponse` 공통 에러 형식
+```json
+{ "message": "이미 등록된 packageName입니다: com.kakao.talk" }
+```

@@ -1,6 +1,6 @@
 # 개인 맞춤 위험도(2-2 / 2-5) 서버 구현 여부 검토
 
-> 작성: 황다연(위험도) · 상태: **검토안 — 팀 결정 대기**
+> 작성: 황다연(위험도) · 상태: **결정 완료 (2026-07-26) — 서버 구현(옵션 B) 확정, 정본 모델은 combineImpacts로 통일**
 > 목적: 2-2/2-5 개인 맞춤 위험도 로직이 현재 프론트(Kotlin)에만 있는 상황에서,
 > 서버 구현이 필요한지와 담당자를 팀이 확정하기 위한 근거 정리.
 
@@ -36,7 +36,10 @@
 ### 서버 (Spring, develop 기준)
 
 - 크롤링→LLM→산출→저장 파이프라인(`RiskPipelineService`)과 **기업 대표 위험도** 저장은 있음.
-- **사용자별 토글 재산출 API는 없음.** (PATCH 토글 엔드포인트는 stage3/PR #18에만 있고 develop 미반영)
+- **사용자별 토글 재산출 API는 이미 구현되어 있음** (`PATCH /users/{userId}/consents/{consentItemId}`,
+  `ConsentApiController`/`ConsentApiService.toggleConsent()`, develop 병합 완료). 필수동의 전체 +
+  사용자가 실제 체크한 선택동의 기준으로 재산출한다(`calculatePersonalRisk`). 대표값 합성 방식은
+  `combineImpacts`(변수별 최댓값 합성)로 전환됨 — 5번 항목 참고.
 
 ---
 
@@ -80,7 +83,7 @@
 
 ## 6. 팀 결정 체크리스트 (회의에서 채움)
 
-- [ ] "여러 항목 → 대표 위험도" 정본 모델: ☐ 변수별 max(`combineImpacts`) ☐ 점수 max(`calculateMax`)
+- [x] "여러 항목 → 대표 위험도" 정본 모델: combineImpacts (2026-07-26 팀 결정, 위험도 산정 모델 설계 문서의 카카오톡 분석 예시 근거)
 - [ ] 개인 맞춤 위험도 서버 구현: ☐ 함 (옵션 B) ☐ 안 함 (옵션 A 유지)
 - [ ] (구현 시) `combineImpacts` 대응 로직 common-model 이식 담당: ______
 - [ ] (구현 시) 재산출 API/스키마(개인 동의상태 저장) 담당: ______ (백엔드)
