@@ -20,7 +20,12 @@ import android.util.Log
  */
 class AppLaunchDetector(
     context: Context,
-    private val watchedPackages: Set<String> = WatchedApps.watchedPackages,
+    /**
+     * 감시 대상 패키지 목록 제공자.
+     * 목록이 서버 응답으로 런타임에 갱신되므로 고정 Set이 아니라 매 조회 시 읽어온다.
+     * 목록이 비어 있으면(아직 못 받아옴) 어떤 앱도 감지하지 않는다.
+     */
+    private val watchedPackagesProvider: () -> Set<String>,
     private val cooldownMillis: Long = DEFAULT_COOLDOWN_MILLIS,
 ) {
     private val usageStatsManager =
@@ -38,6 +43,7 @@ class AppLaunchDetector(
      * 감지된 게 없으면 null.
      */
     fun pollLaunchedWatchedApp(): String? {
+        val watchedPackages = watchedPackagesProvider()
         val now = System.currentTimeMillis()
         // 이벤트 기록 지연에 대비해 직전 구간과 살짝 겹치게 조회한다 (중복은 쿨다운이 걸러줌)
         val events = usageStatsManager.queryEvents(lastQueriedTime - QUERY_OVERLAP_MILLIS, now)

@@ -2,26 +2,27 @@ package com.dynamicconsent.monitor
 
 import android.content.Context
 import android.util.Log
-import com.dynamicconsent.data.repository.DummyOrganizationRepository
 import com.dynamicconsent.data.repository.OrganizationRepository
+import com.dynamicconsent.data.repository.RepositoryProvider
 import com.dynamicconsent.overlay.RiskOverlayService
 
 /**
  * [2단계] 오버레이 파이프라인.
  *
  * 감지된 앱 패키지명을 받아
- *   ① 패키지명 → 기관 ID 매핑 (WatchedApps)
+ *   ① 패키지명 → 기관 ID 매핑 (WatchedAppRegistry)
  *   ② 기관 위험도 데이터 조회 (OrganizationRepository)
- *   ③ 위험도 오버레이 팝업 표시 (#8 RiskOverlayService)
+ *   ③ 위험도 오버레이 팝업 표시 (RiskOverlayService)
  * 까지 이어주는 흐름 전체를 담당한다.
  *
- * 데이터 소스는 현재 mock JSON(DummyOrganizationRepository)이며,
- * 백엔드 REST API 연동 시 repository 구현체만 교체하면 파이프라인 코드는 그대로 유지된다.
+ * 데이터 소스는 RepositoryProvider가 AppConfig.USE_REMOTE_API에 따라 결정하므로,
+ * mock/실 API 어느 쪽이든 기관 id 체계가 데이터와 항상 일치한다.
  */
 class RiskOverlayPipeline(
     private val appContext: Context,
     private val repository: OrganizationRepository =
-        DummyOrganizationRepository(appContext.assets),
+        RepositoryProvider.organizationRepository(appContext.assets),
+    private val registry: WatchedAppRegistry = WatchedAppRegistry(repository),
 ) {
 
     /**
@@ -31,7 +32,10 @@ class RiskOverlayPipeline(
     suspend fun showOverlayFor(packageName: String): Boolean {
         Log.d(TAG, "파이프라인 시작: package=$packageName")
 
-        val orgId = WatchedApps.packageToOrgId[packageName]
+        // 매핑이 아직 없으면(첫 실행·서버 실패) 재시도 간격을 지켜 한 번 더 받아온다.
+        if (registry.isEmpty) registry.refresh()
+
+        val orgId = registry.orgIdFor(packageName)
         if (orgId == null) {
             Log.w(TAG, "매핑된 기관 없음: $packageName")
             return false
@@ -47,6 +51,13 @@ class RiskOverlayPipeline(
         RiskOverlayService.start(appContext, org.id, org.riskScore, org.riskGrade)
         return true
     }
+
+    /** 감시 대상 목록을 미리 받아둔다(서비스 시작 시 1회). */
+    suspend fun prepareWatchedApps(): Boolean = registry.refresh(force = true)
+
+    /** 현재 감시 중인 패키지 목록 (UI 표시·감지기 구성용) */
+    val watchedPackages: Set<String>
+        get() = registry.watchedPackages
 
     private companion object {
         const val TAG = "RiskOverlayPipeline"
