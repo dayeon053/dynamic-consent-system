@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  개발용 백엔드 서버는 http(cleartext)로 동작한다.
+  운영에서는 HTTPS를 강제하기 위해 개발 호스트에만 cleartext를 허용한다.
+    - 10.0.2.2   : 에뮬레이터에서 본 호스트 PC의 localhost
+    - localhost  : 기기 자체 로컬
+  실제 배포 서버(HTTPS) 주소로 바꾸면 이 예외는 필요 없어진다.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">localhost</domain>
+    </domain-config>
+</network-security-config>

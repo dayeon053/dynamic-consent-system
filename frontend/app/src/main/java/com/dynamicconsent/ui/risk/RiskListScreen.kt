@@ -43,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dynamicconsent.data.model.Organization
 import com.dynamicconsent.data.model.OrganizationDetail
+import com.dynamicconsent.ui.common.ErrorRetry
 import com.dynamicconsent.ui.common.OrgLogo
 import com.dynamicconsent.ui.common.RiskAnalysisSection
 import com.dynamicconsent.ui.theme.BrandGreen
@@ -90,6 +91,15 @@ fun RiskListScreen(
             ) {
                 CircularProgressIndicator()
             }
+            return@Scaffold
+        }
+
+        uiState.error?.let { message ->
+            ErrorRetry(
+                message = message,
+                onRetry = viewModel::retry,
+                modifier = Modifier.padding(innerPadding),
+            )
             return@Scaffold
         }
 

@@ -17,15 +17,34 @@ import com.dynamicconsent.domain.RiskCalculator
 import com.dynamicconsent.domain.RiskRecalculator
 
 /**
- * 서버 응답(CompanyResponse)을 화면 모델(OrganizationDetail)로 변환한다.
- * 위험도 점수·등급·분석 정보는 동의 항목의 5대 변수로 클라이언트에서 재산출해 채운다.
+ * 서버 응답을 화면 모델로 변환한다.
+ * 기업 요약(GET /companies)과 동의 항목(GET /companies/{id}/consent-items)이 별도 응답이라
+ * 각각 매핑 함수를 둔다. 위험도 분석 정보는 동의 항목의 5대 변수로 클라이언트에서 재산출한다.
  */
 object CompanyMapper {
 
     private const val DEFAULT_LOGO_COLOR = 0xFF00752FL
 
-    fun toOrganizationDetail(response: CompanyResponse): OrganizationDetail {
-        val optionalConsents = response.consentItems
+    /** GET /companies 항목 → 리스트 카드용 요약. 위험도는 서버 산출값을 그대로 쓴다. */
+    fun toOrganization(response: CompanyResponse): Organization = Organization(
+        id = response.companyId.toString(),
+        name = response.companyName,
+        category = "기타",
+        riskScore = response.riskScore ?: RiskCalculator.MIN_SCORE,
+        riskGrade = response.riskGrade ?: RiskGrade.VERY_LOW,
+        logoText = response.companyName.take(1),
+        logoColor = DEFAULT_LOGO_COLOR,
+    )
+
+    /**
+     * 기업 요약 + 동의 항목 → 기업상세.
+     * 사용자 체크 상태 기준으로 점수·등급·산출식·철회 효과를 클라이언트에서 재산출해 채운다.
+     */
+    fun toOrganizationDetail(
+        company: CompanyResponse,
+        consentItems: List<ConsentItemResponse>,
+    ): OrganizationDetail {
+        val optionalConsents = consentItems
             .filter { it.itemType == ConsentItemResponse.TYPE_OPTIONAL }
             .map { item ->
                 ConsentToggleItem(
@@ -41,7 +60,7 @@ object CompanyMapper {
                     ),
                 )
             }
-        val requiredConsents = response.consentItems
+        val requiredConsents = consentItems
             .filter { it.itemType == ConsentItemResponse.TYPE_REQUIRED }
             .map { item ->
                 ConsentRequiredItem(
@@ -58,29 +77,20 @@ object CompanyMapper {
             }
 
         val base = OrganizationDetail(
-            organization = Organization(
-                id = response.companyId.toString(),
-                name = response.companyName,
-                category = "기타",
-                riskScore = response.riskScore ?: RiskCalculator.MIN_SCORE,
-                riskGrade = response.riskGrade ?: RiskGrade.VERY_LOW,
-                logoText = response.companyName.take(1),
-                logoColor = DEFAULT_LOGO_COLOR,
-            ),
+            organization = toOrganization(company),
             consentDetail = ConsentDetail(
                 optionalConsents = optionalConsents,
                 requiredConsents = requiredConsents,
             ),
             riskAnalysis = placeholderAnalysis(),
             companyInfo = CompanyInfo(
-                serviceName = response.companyName,
-                legalName = response.companyName,
-                privacyCertification = if (response.ismsCertified) "ISMS-P" else "-",
-                privacyPolicyUrl = response.privacyUrl.orEmpty(),
+                serviceName = company.companyName,
+                legalName = company.companyName,
+                privacyCertification = if (company.ismsCertified) "ISMS-P" else "-",
+                privacyPolicyUrl = company.privacyUrl.orEmpty(),
             ),
         )
 
-        // 사용자 체크 상태 기준으로 점수·등급·산출식·철회 효과를 재산출해 채운다
         val enabledIds = optionalConsents.filter { it.enabled }.map { it.id }.toSet()
         return RiskRecalculator.recalculate(base, enabledIds)
     }

@@ -54,6 +54,7 @@ import com.dynamicconsent.data.model.ConsentRequiredItem
 import com.dynamicconsent.data.model.ConsentToggleItem
 import com.dynamicconsent.data.model.OrganizationDetail
 import com.dynamicconsent.data.model.ThirdPartyProvider
+import com.dynamicconsent.ui.common.ErrorRetry
 import com.dynamicconsent.ui.common.OrgLogo
 import com.dynamicconsent.ui.common.RiskAnalysisSection
 import com.dynamicconsent.ui.theme.AppBackground
@@ -105,6 +106,15 @@ fun OrgDetailScreen(
             )
         },
     ) { innerPadding ->
+        uiState.error?.let { message ->
+            ErrorRetry(
+                message = message,
+                onRetry = viewModel::retry,
+                modifier = Modifier.padding(innerPadding),
+            )
+            return@Scaffold
+        }
+
         val detail = uiState.detail
         if (uiState.isLoading || detail == null) {
             Box(
