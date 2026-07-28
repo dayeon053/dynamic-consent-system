@@ -43,7 +43,19 @@ object CompanyMapper {
             }
         val requiredConsents = response.consentItems
             .filter { it.itemType == ConsentItemResponse.TYPE_REQUIRED }
-            .map { ConsentRequiredItem(id = it.consentItemId.toInt(), title = it.itemName) }
+            .map { item ->
+                ConsentRequiredItem(
+                    id = item.consentItemId.toInt(),
+                    title = item.itemName,
+                    variableImpact = RiskVariables(
+                        ds = item.dsScore,
+                        es = item.esScore,
+                        tf = item.tfScore,
+                        pc = item.pcScore,
+                        ai = item.aiScore,
+                    ),
+                )
+            }
 
         val base = OrganizationDetail(
             organization = Organization(

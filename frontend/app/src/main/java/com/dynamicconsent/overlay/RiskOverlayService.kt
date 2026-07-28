@@ -10,6 +10,7 @@ import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
+import android.net.Uri
 import android.provider.Settings
 import android.view.Gravity
 import android.view.WindowManager
@@ -21,6 +22,8 @@ import androidx.core.app.NotificationCompat
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.dynamicconsent.data.model.RiskGrade
+import com.dynamicconsent.ui.navigation.Screen
+import com.dynamicconsent.ui.orgdetail.OrgDetailTab
 import com.dynamicconsent.ui.theme.FrontendTheme
 
 /**
@@ -41,10 +44,12 @@ class RiskOverlayService : Service() {
         private const val NOTIFICATION_ID = 1001
         private const val EXTRA_SCORE = "extra_score"
         private const val EXTRA_GRADE = "extra_grade"
+        private const val EXTRA_ORG_ID = "extra_org_id"
 
         /** 화면에 보이는 컨텍스트에서 호출할 것. */
-        fun start(context: Context, score: Double, grade: RiskGrade) {
+        fun start(context: Context, orgId: String, score: Double, grade: RiskGrade) {
             val intent = Intent(context, RiskOverlayService::class.java).apply {
+                putExtra(EXTRA_ORG_ID, orgId)
                 putExtra(EXTRA_SCORE, score)
                 putExtra(EXTRA_GRADE, grade.name)
             }
@@ -80,20 +85,21 @@ class RiskOverlayService : Service() {
             return START_NOT_STICKY
         }
 
+        val orgId = intent?.getStringExtra(EXTRA_ORG_ID).orEmpty()
         val score = intent?.getDoubleExtra(EXTRA_SCORE, Double.NaN) ?: Double.NaN
         val grade = intent?.getStringExtra(EXTRA_GRADE)
             ?.let { runCatching { RiskGrade.valueOf(it) }.getOrNull() }
 
-        if (score.isNaN() || grade == null) {
+        if (orgId.isEmpty() || score.isNaN() || grade == null) {
             stopSelf()
             return START_NOT_STICKY
         }
 
-        showOverlay(score, grade)
+        showOverlay(orgId, score, grade)
         return START_NOT_STICKY
     }
 
-    private fun showOverlay(score: Double, grade: RiskGrade) {
+    private fun showOverlay(orgId: String, score: Double, grade: RiskGrade) {
         removeOverlay()
 
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -123,8 +129,8 @@ class RiskOverlayService : Service() {
                 RiskOverlayContent(
                     score = score,
                     grade = grade,
-                    onWithdraw = {
-                        // TODO: 동의 철회 화면으로 이동 등 실제 액션 연결
+                    onDetail = {
+                        openOrgDetail(orgId)
                         stopSelf()
                     },
                     onClose = { stopSelf() },
@@ -143,6 +149,16 @@ class RiskOverlayService : Service() {
 
         windowManager.addView(view, params)
         overlayView = view
+    }
+
+    /** #13에서 등록한 딥링크로 기업상세 화면(위험도 탭)을 연다. */
+    private fun openOrgDetail(orgId: String) {
+        val uri = Uri.parse(Screen.OrgDetail.createDeepLinkUri(orgId, OrgDetailTab.RISK))
+        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        runCatching { startActivity(intent) }
+            .onFailure { android.util.Log.e("RiskOverlayService", "기업상세 이동 실패: $orgId", it) }
     }
 
     private fun removeOverlay() {

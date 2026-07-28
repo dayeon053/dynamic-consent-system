@@ -119,7 +119,7 @@ class ApiOrganizationRepositoryTest {
 
         assertEquals(12L, response.consentItemId)
         assertEquals(false, response.checked)
-        assertEquals(15.0, response.newRiskScore, 0.0)
+        assertEquals(15.0, response.newRiskScore!!, 0.0)
         assertEquals(RiskGrade.MEDIUM, response.newRiskGrade)
 
         val request = server.takeRequest()

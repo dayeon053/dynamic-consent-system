@@ -8,6 +8,9 @@ import com.dynamicconsent.ui.orgdetail.OrgDetailTab
 sealed class Screen(val route: String) {
     data object RiskList : Screen("risk_list")
 
+    /** 실행 감시(2·3단계) 테스트 화면 */
+    data object Monitor : Screen("monitor")
+
     data object OrgDetail : Screen("org_detail/{orgId}?tab={tab}") {
         const val ARG_ORG_ID = "orgId"
         const val ARG_TAB = "tab"

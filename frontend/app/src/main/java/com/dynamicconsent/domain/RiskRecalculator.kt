@@ -20,13 +20,15 @@ object RiskRecalculator {
         val consents = detail.consentDetail.optionalConsents.map {
             it.copy(enabled = it.id in enabledConsentIds)
         }
-        val enabledImpacts = consents.filter { it.enabled }.map { it.variableImpact }
+        // 필수동의는 사용자가 끌 수 없으므로 항상 위험도에 반영한다.
+        val requiredImpacts = detail.consentDetail.requiredConsents.map { it.variableImpact }
+        val enabledImpacts = requiredImpacts + consents.filter { it.enabled }.map { it.variableImpact }
         val variables = RiskCalculator.combineImpacts(enabledImpacts)
         val score = RiskCalculator.calculateScore(variables)
         val grade = RiskCalculator.classifyGrade(score)
 
         val withdrawalEffects = consents.filter { it.enabled }.map { item ->
-            val withoutItem = consents
+            val withoutItem = requiredImpacts + consents
                 .filter { it.enabled && it.id != item.id }
                 .map { it.variableImpact }
             val reducedScore = RiskCalculator.calculateScore(RiskCalculator.combineImpacts(withoutItem))
@@ -37,7 +39,8 @@ object RiskRecalculator {
             )
         }
 
-        val minScore = RiskCalculator.MIN_SCORE
+        // 선택동의를 모두 해지해도 필수동의는 남으므로, 도달 가능한 최저 점수는 필수동의 기준이다.
+        val minScore = RiskCalculator.calculateScore(RiskCalculator.combineImpacts(requiredImpacts))
         val maxEffect = MaxEffect(
             currentScore = "${score}점",
             currentGrade = grade,

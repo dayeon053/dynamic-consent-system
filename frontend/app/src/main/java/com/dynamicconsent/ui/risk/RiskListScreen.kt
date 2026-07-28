@@ -56,6 +56,7 @@ import com.dynamicconsent.ui.theme.backgroundColor
 fun RiskListScreen(
     onBackClick: () -> Unit,
     onOrgDetailClick: (orgId: String) -> Unit,
+    onMonitorClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: RiskListViewModel = viewModel(),
 ) {
@@ -75,7 +76,7 @@ fun RiskListScreen(
                     IconButton(onClick = {}) {
                         Icon(Icons.Default.Info, contentDescription = "정보", tint = BrandGreen)
                     }
-                    IconButton(onClick = {}) {
+                    IconButton(onClick = onMonitorClick) {
                         Icon(Icons.Default.Notifications, contentDescription = "알림", tint = BrandGreen)
                     }
                 },
