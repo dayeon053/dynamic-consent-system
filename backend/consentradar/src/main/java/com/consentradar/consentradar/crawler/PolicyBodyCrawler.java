@@ -15,6 +15,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
 
 /**
@@ -52,9 +55,21 @@ public class PolicyBodyCrawler {
 
     // 헤드리스 브라우저는 기동 비용이 크므로(수백ms~수초) 최초 SPA 폴백이 필요할 때 한 번만
     // 띄우고 재사용한다. 정적 사이트만 처리하는 동안에는 전혀 생성되지 않는다.
-    private volatile Playwright playwright;
-    private volatile Browser browser;
-    private final Object browserLock = new Object();
+    //
+    // Playwright는 Browser/Page 등 자신이 만든 객체를 생성한 스레드에서만 써야 한다는
+    // 제약이 있다(공식 문서 "Threading" 섹션). 이 빈은 싱글턴이라 스케줄러 스레드(매일 새벽
+    // 3시 자동 실행)와 관리자 수동 트리거(POST /admin/crawl/{companyId}, HTTP 요청 스레드)
+    // 양쪽에서 동시에 호출될 수 있으므로, Playwright/Browser 생성과 모든 페이지 조작을
+    // 전용 단일 스레드(playwrightExecutor)로만 보내 실행한다 — 실제로 두 스레드가 동시에
+    // browser().newPage()를 호출하면 "Cannot find object to call __adopt__" 등 Playwright
+    // 프로토콜 오류가 재현된다(PolicyBodyCrawlerConcurrencyTest).
+    private final ExecutorService playwrightExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "playwright-crawler");
+        t.setDaemon(true);
+        return t;
+    });
+    private Playwright playwright;
+    private Browser browser;
 
     public String fetchCleanText(String url) {
         Document doc = fetchWithRetry(url);
@@ -115,8 +130,26 @@ public class PolicyBodyCrawler {
     /**
      * 헤드리스 Chromium으로 페이지를 실제 로드하고, JS 렌더링이 끝날 때까지
      * (네트워크가 유휴 상태가 될 때까지) 기다린 뒤 최종 HTML을 반환한다.
+     *
+     * 호출한 스레드가 무엇이든(스케줄러 스레드든 관리자 HTTP 요청 스레드든) 실제 Playwright
+     * 호출은 항상 {@link #playwrightExecutor}의 전용 스레드 위에서만 실행되도록 위임한다.
      */
     protected String fetchRenderedHtml(String url) {
+        try {
+            return playwrightExecutor.submit(() -> renderOnPlaywrightThread(url)).get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PolicyCrawlException(url + " 헤드리스 브라우저 렌더링 중 인터럽트 발생", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof PolicyCrawlException policyCrawlException) {
+                throw policyCrawlException;
+            }
+            throw new PolicyCrawlException(url + " 헤드리스 브라우저 렌더링 실패: " + cause.getMessage(), cause);
+        }
+    }
+
+    private String renderOnPlaywrightThread(String url) {
         try {
             Page page = browser().newPage(new Browser.NewPageOptions().setUserAgent(USER_AGENT));
             try {
@@ -132,33 +165,38 @@ public class PolicyBodyCrawler {
         }
     }
 
+    /**
+     * playwrightExecutor의 전용 스레드에서만 호출되므로(단일 스레드 executor) 동시 접근이
+     * 없어 별도 동기화가 필요 없다.
+     */
     private Browser browser() {
-        Browser result = browser;
-        if (result == null) {
-            synchronized (browserLock) {
-                result = browser;
-                if (result == null) {
-                    log.info("[Crawler] 헤드리스 브라우저(Playwright Chromium) 최초 기동");
-                    playwright = Playwright.create();
-                    browser = result = playwright.chromium()
-                            .launch(new BrowserType.LaunchOptions().setHeadless(true));
-                }
-            }
+        if (browser == null) {
+            log.info("[Crawler] 헤드리스 브라우저(Playwright Chromium) 최초 기동");
+            playwright = Playwright.create();
+            browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true));
         }
-        return result;
+        return browser;
     }
 
     @PreDestroy
     public void close() {
-        synchronized (browserLock) {
-            if (browser != null) {
-                browser.close();
-                browser = null;
-            }
-            if (playwright != null) {
-                playwright.close();
-                playwright = null;
-            }
+        try {
+            playwrightExecutor.submit(() -> {
+                if (browser != null) {
+                    browser.close();
+                    browser = null;
+                }
+                if (playwright != null) {
+                    playwright.close();
+                    playwright = null;
+                }
+            }).get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException e) {
+            log.warn("[Crawler] Playwright 종료 중 오류: {}", e.getMessage());
+        } finally {
+            playwrightExecutor.shutdown();
         }
     }
 
