@@ -152,14 +152,26 @@
 
 ## 2-5. 약관 변경 알림 목록 조회
 
-- **상태**: **미구현 (계획 단계)**
+- **상태**: **구현 완료 (2026-07-30)**
+- **관련 코드**: `notice/NoticeController.java`, `notice/NoticeResponse.java`, `repository/PolicySnapshotRepository.findAllByOrderByCrawledAtDesc()`
 - **Method**: GET
 - **URL**: `/notices`
-- **설명**: 크롤링 봇이 감지한 약관 변경 이력 목록 반환 (공지사항 탭)
-- **응답 예시**: `{ "company_name": "카카오", "crawled_at": "2026-06-29T00:00:00Z", "is_changed": true }`
-- **Query Parameters**: `page`(Int, 선택, 기본값 0), `size`(Int, 선택, 기본값 20)
-
-(변경 감지 로직 자체는 `PolicyChangeDetectionService`로 백엔드에 구현/검증되어 있으나, 이를 노출하는 조회 API는 아직 없다.)
+- **설명**: 전체 기업의 약관 스냅샷 전체를 확인 시각(`crawledAt`) 내림차순으로 페이징 반환한다(공지사항 탭). 기존에 이미 쌓여 있던 `PolicySnapshot`/`PolicyChangeDetectionService.detectAndSave()`(`crawler/PolicyChangeDetectionService.java:33-56`) 데이터를 그대로 재사용한다.
+- **Query Parameters**: `page`(Int, 선택, 기본값 0), `size`(Int, 선택, 기본값 20) — offset 방식 페이징(`PageRequest.of(page, size)`)
+- **응답**: `List<NoticeResponse>` (배열, 래핑 없음)
+- **응답 예시** (2026-07-30 로컬 서버 `GET /notices?page=0&size=20` 실제 호출 결과):
+  ```json
+  [
+    { "companyId": 5, "companyName": "당근마켓", "crawledAt": "2026-07-30T20:14:21.473038", "isChanged": false },
+    { "companyId": 4, "companyName": "토스", "crawledAt": "2026-07-30T20:14:17.288506", "isChanged": false },
+    { "companyId": 3, "companyName": "배달의민족", "crawledAt": "2026-07-30T20:14:09.253028", "isChanged": false },
+    { "companyId": 2, "companyName": "네이버", "crawledAt": "2026-07-30T20:13:55.408537", "isChanged": false },
+    { "companyId": 1, "companyName": "카카오", "crawledAt": "2026-07-30T20:13:51.296765", "isChanged": false }
+  ]
+  ```
+  - ⚠️ **`crawledAt`은 "변경 시각"이 아니라 "확인 시각"이다.** 약관이 실제로 바뀌지 않아도 매 크롤링(새벽 3시 배치/관리자 수동 트리거)마다 최신 레코드의 `crawledAt`만 갱신된다(`PolicyChangeDetectionService.detectAndSave()` — 해시 동일하면 새 레코드를 만들지 않고 기존 레코드의 `crawledAt`만 `LocalDateTime.now()`로 덮어씀). 실제로 변경이 있었는지는 `isChanged` 필드로 판단해야 한다.
+  - **`isChanged` 필드명 관련 실측 확인**: `NoticeResponse`는 record가 아니라 class + `isChanged()` getter로 만들었지만, 그것만으로는 Jackson이 여전히 "is" 접두사를 벗겨 `"changed"`로 직렬화한다(실제로 처음 구현·호출했을 때 `"changed":false`로 나오는 것을 확인함). `@JsonProperty("isChanged")`를 getter에 명시적으로 붙여야 응답 필드명이 정확히 `isChanged`로 고정된다 — 이 프로젝트에서 boolean 필드를 `isXxx`로 노출하려면 record든 class든 별도 조치(record는 컴포넌트명 그대로 직렬화되지만 그 이름 자체가 `isXxx`가 아니라 다른 걸로 오해하기 쉬우니, class는 `@JsonProperty` 없이는 항상 깎인다는 점을 유의).
+  - **타임존**: `crawledAt`은 UTC가 아니라 **KST 그대로** 저장·반환된다. `PolicySnapshot.crawledAt`도 `UserConsentHistory.changedAt`(2-8)과 동일하게 `LocalDateTime.now()`로 저장되고, 서버 JVM 기본 타임존이 Asia/Seoul(KST)이라 별도 변환 없이 이미 KST 값이다 — 2-8의 `changedAt`과 일관되게 이 API도 변환 없이 그대로 내려준다.
 
 ---
 
