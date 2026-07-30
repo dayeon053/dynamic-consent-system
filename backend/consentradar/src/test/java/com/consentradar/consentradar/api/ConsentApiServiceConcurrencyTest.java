@@ -85,13 +85,13 @@ class ConsentApiServiceConcurrencyTest {
         Callable<Void> toggleA = () -> {
             readyLatch.countDown();
             startLatch.await();
-            retrier.retry(() -> consentApiService.toggleConsent(userId, optionalItemAId));
+            retrier.retry(() -> consentApiService.toggleConsent(userId, optionalItemAId, null));
             return null;
         };
         Callable<Void> toggleB = () -> {
             readyLatch.countDown();
             startLatch.await();
-            retrier.retry(() -> consentApiService.toggleConsent(userId, optionalItemBId));
+            retrier.retry(() -> consentApiService.toggleConsent(userId, optionalItemBId, null));
             return null;
         };
 

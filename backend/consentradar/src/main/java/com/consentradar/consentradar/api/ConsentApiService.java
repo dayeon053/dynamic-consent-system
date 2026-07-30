@@ -50,8 +50,8 @@ public class ConsentApiService {
 
     /**
      * PATCH /users/{userId}/consents/{consentItemId}
-     * 동의 상태를 토글하고, "이 사용자" 기준 개인 맞춤 위험도(필수동의 + 사용자가 실제
-     * 체크한 선택동의)를 재산출해 반환한다.
+     * 동의 상태를 요청된 값으로 설정(레거시 호출은 토글)하고, "이 사용자" 기준 개인 맞춤
+     * 위험도(필수동의 + 사용자가 실제 체크한 선택동의)를 재산출해 반환한다.
      *
      * [수정 이력 — 개인 맞춤 필터링 버그 수정]
      * 기존에는 토글 상태와 무관하게 기업의 ConsentItem 전체(필수+선택, 체크여부 무관)로
@@ -79,16 +79,22 @@ public class ConsentApiService {
      * UserConsentCheck는 "현재 상태"만 덮어써 보관해 이력이 남지 않으므로, 상태를 바꿀 때마다
      * {@link UserConsentHistoryRecorder}로 별도 이력 테이블에 한 건씩 append한다. 개인 맞춤
      * 위험도 계산은 여전히 UserConsentCheck(현재 상태)만 조회하는 기존 구조 그대로다.
+     *
+     * [수정 이력 — PATCH 멱등성 개선(A안)]
+     * {@code desiredChecked}가 주어지면(요청 본문 {@code {"checked": true/false}}) 그 값을
+     * 그대로 저장한다 — 반전이 아니므로 같은 요청이 중복 전송돼도 항상 같은 최종 상태로
+     * 수렴한다(멱등). {@code desiredChecked}가 null이면(본문 없는 레거시 호출) 하위호환을 위해
+     * 기존 반전(toggle) 방식으로 처리한다.
      */
     @Transactional
-    public ConsentPatchResponse toggleConsent(Long userId, Long consentItemId) {
+    public ConsentPatchResponse toggleConsent(Long userId, Long consentItemId, Boolean desiredChecked) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
 
         ConsentItem consentItem = consentItemRepository.findById(consentItemId)
                 .orElseThrow(() -> new IllegalArgumentException("동의항목을 찾을 수 없습니다: " + consentItemId));
 
-        // 기존 체크 레코드가 있으면 토글, 없으면 신규 생성
+        // 기존 체크 레코드가 있으면 갱신, 없으면 신규 생성
         UserConsentCheck check = userConsentCheckRepository
                 .findByUser_UserIdAndConsentItem_ConsentItemId(userId, consentItemId)
                 .orElseGet(() -> {
@@ -98,7 +104,7 @@ public class ConsentApiService {
                     return c;
                 });
 
-        check.setChecked(!check.isChecked());
+        check.setChecked(desiredChecked != null ? desiredChecked : !check.isChecked());
         userConsentCheckRepository.save(check);
         userConsentHistoryRecorder.record(user, consentItem, check.isChecked());
 
