@@ -60,6 +60,8 @@ class ConsentHistoryIntegrationTest {
 
         Company company = new Company();
         company.setCompanyName("동의이력테스트기업");
+        company.setLegalName("동의이력테스트기업");
+        company.setCategory("기타");
         company.setPackageName(TEST_PACKAGE_NAME);
         company.setPrivacyUrl("https://example.com/privacy");
         company.setIsmsCertified(false);

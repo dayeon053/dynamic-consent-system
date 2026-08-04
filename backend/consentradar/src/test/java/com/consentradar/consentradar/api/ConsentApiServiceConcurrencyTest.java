@@ -60,6 +60,8 @@ class ConsentApiServiceConcurrencyTest {
 
         Company company = new Company();
         company.setCompanyName("동시성테스트기업-" + System.nanoTime());
+        company.setLegalName("동시성테스트기업");
+        company.setCategory("기타");
         company.setPackageName("test.concurrency." + System.nanoTime());
         company.setPrivacyUrl("https://example.com/privacy");
         company.setIsmsCertified(false);

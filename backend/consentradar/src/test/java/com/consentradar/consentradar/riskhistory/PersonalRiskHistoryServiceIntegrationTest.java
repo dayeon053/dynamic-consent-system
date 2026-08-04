@@ -62,6 +62,8 @@ class PersonalRiskHistoryServiceIntegrationTest {
 
         Company company = new Company();
         company.setCompanyName("리스크히스토리테스트기업");
+        company.setLegalName("리스크히스토리테스트기업");
+        company.setCategory("기타");
         company.setPackageName(TEST_PACKAGE_NAME);
         company.setPrivacyUrl("https://example.com/privacy");
         company.setIsmsCertified(false);

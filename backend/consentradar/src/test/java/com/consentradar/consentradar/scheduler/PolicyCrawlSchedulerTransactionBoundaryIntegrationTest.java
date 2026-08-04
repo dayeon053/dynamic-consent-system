@@ -70,6 +70,8 @@ class PolicyCrawlSchedulerTransactionBoundaryIntegrationTest {
 
         Company company = new Company();
         company.setCompanyName("트랜잭션경계테스트기업");
+        company.setLegalName("트랜잭션경계테스트기업");
+        company.setCategory("기타");
         company.setPackageName(TEST_PACKAGE_NAME);
         company.setPrivacyUrl("https://example.com/privacy");
         company.setIsmsCertified(false);

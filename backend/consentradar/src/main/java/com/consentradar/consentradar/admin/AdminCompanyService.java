@@ -31,12 +31,15 @@ public class AdminCompanyService {
 
     @Transactional
     public Company createCompany(CreateCompanyRequest request) {
-        if (isBlank(request.companyName()) || isBlank(request.packageName()) || isBlank(request.privacyUrl())) {
-            throw new IllegalArgumentException("companyName, packageName, privacyUrl은 필수입니다.");
+        if (isBlank(request.companyName()) || isBlank(request.legalName()) || isBlank(request.category())
+                || isBlank(request.packageName()) || isBlank(request.privacyUrl())) {
+            throw new IllegalArgumentException("companyName, legalName, category, packageName, privacyUrl은 필수입니다.");
         }
 
         Company company = new Company();
         company.setCompanyName(request.companyName());
+        company.setLegalName(request.legalName());
+        company.setCategory(request.category());
         company.setPackageName(request.packageName());
         company.setPrivacyUrl(request.privacyUrl());
         company.setIsmsCertified(request.ismsCertified());

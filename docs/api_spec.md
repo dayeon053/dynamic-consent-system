@@ -35,6 +35,8 @@
     {
       "companyId": 1,
       "companyName": "카카오",
+      "legalName": "(주)카카오",
+      "category": "SNS",
       "packageName": "com.kakao.talk",
       "privacyUrl": "https://www.kakaocorp.com/page/detail/9610",
       "ismsCertified": false,
@@ -43,6 +45,7 @@
     }
   ]
   ```
+  - `legalName`/`category`는 마이그레이션 V6(`sql/migration/V6__add_category_and_legal_name_to_company.sql`)에서 추가된 필드로, 기업상세 '정보' 탭(태스크 4-8)에 쓰인다.
   - `riskGrade`는 원안의 `"DANGEROUS"` 같은 임의 문자열이 아니라 실제 5단계 enum(`VERY_LOW` / `LOW` / `MEDIUM` / `HIGH` / `VERY_HIGH`) 중 하나다.
   - 해당 기업에 동의 항목이 없어 위험도를 계산할 수 없으면 `riskScore`/`riskGrade`는 `null`로 내려간다.
 
@@ -210,17 +213,21 @@
   ```json
   {
     "companyName": "카카오",
+    "legalName": "(주)카카오",
+    "category": "SNS",
     "packageName": "com.kakao.talk",
     "privacyUrl": "https://www.kakaocorp.com/page/detail/9610",
     "ismsCertified": false
   }
   ```
-  - `companyName`/`packageName`/`privacyUrl`은 필수(비어있으면 400)
+  - `companyName`/`legalName`/`category`/`packageName`/`privacyUrl`은 필수(비어있으면 400) — `legalName`/`category`는 마이그레이션 V6에서 추가됨
 - **응답**: `CompanyResponse` (HTTP 201)
   ```json
   {
     "companyId": 6,
     "companyName": "카카오",
+    "legalName": "(주)카카오",
+    "category": "SNS",
     "packageName": "com.kakao.talk",
     "privacyUrl": "https://www.kakaocorp.com/page/detail/9610",
     "ismsCertified": false,

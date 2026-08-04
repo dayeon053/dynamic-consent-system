@@ -83,6 +83,8 @@ public class KakaoPipelineDemoRunner implements CommandLineRunner {
                 .orElseGet(() -> {
                     Company company = new Company();
                     company.setCompanyName(target.getCompanyName());
+                    company.setLegalName("(주)카카오");
+                    company.setCategory("SNS");
                     company.setPackageName("com.kakao.talk");
                     company.setPrivacyUrl(target.getPolicyUrl());
                     company.setIsmsCertified(true);
