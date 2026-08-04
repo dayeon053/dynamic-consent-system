@@ -41,6 +41,12 @@ dynamic-consent-system/
 
 ---
 
+## ⚠️ 위험도 계산 수식 이중 구현 주의
+
+위험도 계산 수식은 `common-model/.../algorithm/RiskCalculator.java`(서버)와 `frontend/.../domain/RiskCalculator.kt`(클라)에 **동일하게 구현**되어 있습니다. 등급 경계값(7/14/24/36) 등 수식을 변경할 때는 반드시 양쪽을 동시에 수정해야 하며, 한쪽만 변경하면 서버 응답과 화면 표시가 어긋납니다.
+
+---
+
 ## 🌿 브랜치 전략
 
 ```

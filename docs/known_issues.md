@@ -1,5 +1,43 @@
 # Known Issues
 
+## [해결됨] PolicySnapshot 저장과 위험도 재산출의 트랜잭션 경계 불일치
+
+작업일: 2026-07-26 (발견) / 2026-07-30 (해결)
+관련 코드: `PolicyCrawlProcessor.processCompany()`(신규), `PolicyCrawlScheduler`,
+`PolicyChangeDetectionService.detectAndSave()`, `RiskPipelineService.analyzeAndSaveRisk()`
+관련 테스트: `PolicyCrawlSchedulerTransactionBoundaryIntegrationTest`(단언을 반대로 뒤집어
+"실패 시 스냅샷도 함께 롤백"을 검증하도록 갱신), `PolicyCrawlProcessorTest`(신규, 트리거 조건),
+`PolicyCrawlSchedulerTest`(오케스트레이션만 검증하도록 축소)
+
+### 증상 (해결 전)
+`PolicyChangeDetectionService.detectAndSave()`는 그 자체로 `@Transactional`이라 스냅샷이
+즉시 커밋됐다. `PolicyCrawlScheduler.processCompany()`는 그 자체는 트랜잭션이 아니라서,
+스냅샷 저장 뒤에 실행되는 `riskPipelineService.analyzeAndSaveRisk()`(역시 별도
+`@Transactional`)가 실패하면(LLM 재시도 소진 등) 이미 커밋된 스냅샷은 되돌릴 수 없었다.
+다음 크롤링 때 이 커밋된 스냅샷과 해시가 같으면 "변경 없음"으로 판단되어, 놓친 위험도
+재산출이 영구히 재시도되지 않는 문제가 있었다.
+
+### 해결 내용
+스냅샷 저장 + 위험도 재산출을 하나의 트랜잭션으로 묶었다(재설계 제안 1번 채택). 다만
+단순히 `PolicyCrawlScheduler.processCompany()`에 `@Transactional`만 붙이는 걸로는 안 됐다 —
+`runForCompany()`/`runPipeline()`이 같은 클래스 안에서 `processCompany()`를 내부 호출(자기호출,
+self-invocation)하는 구조라, Spring의 프록시 기반 `@Transactional`이 조용히 무시된다(예외도
+경고도 없음). 그래서 이 프로젝트의 기존 패턴(예: `ConsentApiController` → `ConsentApiService`처럼
+트랜잭션 단위를 별도 빈으로 분리)을 그대로 따라, 신규 `PolicyCrawlProcessor` 빈으로
+`processCompany()`를 옮기고 `PolicyCrawlScheduler`는 이를 주입받아 호출하는 얇은
+오케스트레이터로 남겼다. `PolicyCrawlSchedulerTransactionBoundaryIntegrationTest`로 위험도
+재산출 실패 시 스냅샷 저장까지 롤백되는 것을 실제 로컬 MySQL로 확인했다(`assertTrue(snapshot.isEmpty())`).
+
+### 남은 트레이드오프 (재설계 제안 1번에서 이미 알려진 것, 낮은 우선순위)
+크롤링(느림)과 LLM 호출(더 느림)이 한 트랜잭션 안에 들어가면서 그 시간만큼 DB 커넥션을
+점유한다. 현재 규모(5개 기업, 새벽 배치 순차 처리)에서는 위험이 낮다고 판단했지만, 관리자
+수동 트리거(`POST /admin/crawl/{id}`)가 배치와 동시에 여러 건 겹치는 경우 HikariCP 커넥션
+풀(기본 10개, 별도 설정 없음)이 소진될 이론적 가능성은 남아있다 — **기업 수가 늘어나면
+재검토 필요.** 재설계 제안 2번(`PolicySnapshot`에 `analysisStatus` 컬럼 추가해 트랜잭션 경계는
+그대로 두고 "놓친 분석"만 재시도)은 스키마 변경이 필요해 채택하지 않았다.
+
+---
+
 ## [규칙] 위험도 등급 경계값(7/14/24/36) 변경 시 서버·프론트 동시 수정
 
 작업일: 2026-07-30
@@ -19,39 +57,6 @@
 ### TODO (범위 밖)
 장기적으로는 공통 모듈(common-model)에서 경계값을 단일 소스로 관리하고 프론트가
 이를 참조하도록 구조를 바꾸는 게 근본 해결이나, 이번 범위에서는 다루지 않는다.
-
----
-
-## [열려있음] PolicySnapshot 저장과 위험도 재산출의 트랜잭션 경계 불일치
-
-작업일: 2026-07-26
-관련 코드: `PolicyCrawlScheduler.processCompany()`, `PolicyChangeDetectionService.detectAndSave()`,
-`RiskPipelineService.analyzeAndSaveRisk()`
-관련 테스트: `PolicyCrawlSchedulerTransactionBoundaryIntegrationTest`(회귀 감지용, 재설계는 미구현)
-
-### 증상
-`PolicyChangeDetectionService.detectAndSave()`는 그 자체로 `@Transactional`이라 스냅샷이
-즉시 커밋된다. `PolicyCrawlScheduler.processCompany()`는 그 자체는 트랜잭션이 아니라서,
-스냅샷 저장 뒤에 실행되는 `riskPipelineService.analyzeAndSaveRisk()`(역시 별도
-`@Transactional`)가 실패해도(LLM 재시도 소진 등) 이미 커밋된 스냅샷은 되돌릴 수 없다.
-
-더 심각한 파급효과: 다음 크롤링 때 이 커밋된 스냅샷과 SHA-256 해시를 비교하므로, 그 사이
-내용이 더 안 바뀌었다면 `isChanged()=false`가 되어 **이번에 놓친 위험도 재산출이 영구히
-재시도되지 않는다.** LLM 일시 장애였을 뿐인데 그 정책 변경에 대한 분석 기회 자체가
-조용히 소비돼버리는 셈이다.
-
-### 재설계 제안 (구현 안 함 — 다연과 논의 후 결정)
-1. **스냅샷 저장 + 위험도 재산출을 하나의 트랜잭션으로 묶기**: `processCompany()`에
-   `@Transactional`을 부여(또는 별도 오케스트레이션 메서드로 묶기). 가장 간단하지만,
-   크롤링(느림)과 LLM 호출(더 느림)이 한 트랜잭션 안에 들어가면서 DB 커넥션을 오래
-   점유하게 되는 트레이드오프가 있다.
-2. **PolicySnapshot에 분석 상태 컬럼 추가**(예: `analysisStatus`: PENDING/SUCCESS/FAILED):
-   해시가 같아도 이전 분석이 FAILED였으면 재시도하도록 `isChanged()` 판단 로직을 확장.
-   트랜잭션 경계는 그대로 유지하면서 "놓친 분석"을 다음 크롤링 때 다시 시도할 수 있게
-   해준다. 스키마 변경이 필요하다.
-
-현재는 회귀 감지 테스트만 추가해뒀다 — 지금 이렇게 동작한다는 걸 문서화한 것이지,
-이게 맞는 동작이라는 뜻은 아니다.
 
 ---
 
