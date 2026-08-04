@@ -1,8 +1,8 @@
 # API 명세서
 
 > 원본: Sprint 01(2026-06-29) 작성 "DB 스키마 & API 명세서 초안"
-> 이 문서: Sprint 03(2026-07-21) 기준 실제 구현 코드 대조 후 갱신. 구조(2-1~2-6, 표 형식)는 원안을 그대로 유지하고, 내용만 실제 코드 기준으로 교체/보강했다.
-> 대조 대상 코드: `backend/consentradar/src/main/java/com/consentradar/consentradar/api/ConsentApiController.java`, `.../riskhistory/RiskHistoryController.java`
+> 이 문서: Sprint 03(2026-07-21) 기준 실제 구현 코드 대조 후 갱신. 구조(2-1~2-6, 표 형식)는 원안을 그대로 유지하고, 내용만 실제 코드 기준으로 교체/보강했다. 2-7~2-8은 원안에 없던 신규 엔드포인트.
+> 2026-07-30 업데이트: 백엔드 확인사항 8건을 코드(파일:라인 단위)와 실 DB 조회, 로컬 서버(localhost:8080) 실제 호출로 전수 검증하고 그 결과를 반영. 대조 대상 코드 추가: `.../consenthistory/UserConsentHistoryController.java`, `.../consenthistory/UserConsentHistoryService.java`, `.../riskhistory/PersonalRiskHistoryService.java`, `.../crawler/PolicyChangeDetectionService.java`, `.../repository/PolicySnapshotRepository.java`, `frontend/app/src/main/java/com/dynamicconsent/data/remote/CompanyMapper.kt`, `frontend/app/src/main/java/com/dynamicconsent/monitor/WatchedAppRegistry.kt`.
 
 ---
 
@@ -13,6 +13,7 @@
 | Base URL | `https://api.privacyguard.com/v1` | **미적용 (PoC 단계)**. 실제 배포 도메인 없음. 로컬 개발 서버는 `http://localhost:8080` (별도 context-path 설정 없음, 위 URL들이 곧 실제 경로) |
 | 인증 방식 | Bearer Token (Authorization 헤더) | 일반 API(`companies`, `consents`, `risk-history` 등)는 여전히 인증 없음(PoC). 단, `/admin/**`는 Sprint 04(PR #27, `SecurityConfig.java`)에서 HTTP Basic + `ROLE_ADMIN` 인증이 추가됨 (2026-07-26) |
 | 공통 응답 형식 | `{ "status": 200, "data": {...}, "message": "success" }` | **미적용**. 전부 `ResponseEntity<T>` 또는 `List<T>`를 그대로 반환하며 래핑 없이 응답 바디가 곧 `data`에 해당하는 내용이다. 예: `GET /companies`는 `{status:200,data:[...]}`가 아니라 `[...]` 배열을 바로 반환 |
+| 테스트/데모 사용자 | (원안 없음) | ⚠️ **2026-07-30 기준 `users` 테이블이 완전히 비어 있음(0 rows)**. `sql/migration/V1~V5`는 전부 DDL(스키마 변경)만 있고 사용자 INSERT 시드가 없다(`resources/` 하위에 별도 `data.sql`류 시드 파일도 없음). `userId`를 실제로 검증하는 건 PATCH(2-3)뿐이라 GET 계열(2-1, 2-2)은 존재하지 않는 userId로도 200 정상 응답한다 — 각 절의 "실제 검증 결과" 참고 |
 
 ---
 
@@ -25,8 +26,8 @@
 
   | 이름 | 타입 | 필수 | 기본값 | 설명 |
   |---|---|---|---|---|
-  | `userId` | Long | 필수 | - | 사용자 ID (원안과 동일하게 필수) |
-  | `sort` | String | 선택 | `risk_score_desc` | ⚠️ **알려진 이슈**: 파라미터를 받기는 하지만 컨트롤러 내부에서 실제로 사용되지 않는다. 값과 무관하게 항상 개인 맞춤 위험도 내림차순으로 고정 정렬된다 |
+  | `userId` | Long | 필수 | - | 사용자 ID (원안과 동일하게 필수). ⚠️ **존재 검증 안 함**: `ConsentApiService.getCompaniesSortedByRisk()`(`ConsentApiService.java:143`)는 `userId`로 사용자를 조회하지 않고 그대로 위험도 계산에만 사용하므로, DB에 없는 userId를 넣어도 200과 함께 정상 목록이 반환된다(2026-07-30 로컬 서버 실 호출로 확인, `users` 테이블이 비어 있는 상태에서도 200) |
+  | `sort` | String | 선택 | `risk_score_desc` | sort 파라미터는 현재 미사용 상태입니다. 서버는 위험도(risk_score) 내림차순 정렬만 지원하며, sort 값은 컨트롤러에서 수신되지만 서비스 로직에는 반영되지 않습니다. 향후 정렬 옵션 확장 필요 시 재검토 예정입니다. |
 
 - **응답**: `List<CompanyRiskResponse>` (배열, 래핑 없음)
 - **응답 예시** (실제 필드명 camelCase, 실제 등급 enum 값 기준):
@@ -45,6 +46,14 @@
   ```
   - `riskGrade`는 원안의 `"DANGEROUS"` 같은 임의 문자열이 아니라 실제 5단계 enum(`VERY_LOW` / `LOW` / `MEDIUM` / `HIGH` / `VERY_HIGH`) 중 하나다.
   - 해당 기업에 동의 항목이 없어 위험도를 계산할 수 없으면 `riskScore`/`riskGrade`는 `null`로 내려간다.
+  - ⚠️ **`category`/`logoText`/`logoColor` 필드 자체가 응답에 없다.** `Company` 엔티티(`entity/Company.java:15-58`)와 `CompanyRiskResponse` DTO(`api/dto/CompanyRiskResponse.java`) 어디에도 이 3개 필드가 없음을 코드로 확인함(백엔드 전체 grep 0건). **오해 정정**: "백엔드 CompanyMapper가 하드코딩한다"는 원래 가설과 달리, 백엔드에는 이 이름의 매퍼 자체가 없다 — 값을 하드코딩하는 지점은 **프론트엔드**다. 안드로이드 앱 `frontend/app/src/main/java/com/dynamicconsent/data/remote/CompanyMapper.kt:33-37`에서 서버가 안 주는 값을 클라이언트가 임시로 채워 넣는다:
+    ```kotlin
+    category = "기타",                              // CompanyMapper.kt:33
+    logoText = response.companyName.take(1),        // CompanyMapper.kt:36 (기업명 첫 글자)
+    logoColor = DEFAULT_LOGO_COLOR,                  // CompanyMapper.kt:37 (26번 줄: 0xFF00752FL 고정값)
+    ```
+    카테고리/로고를 실제로 제공하려면 백엔드 스키마(`company` 테이블 컬럼 추가)와 API 응답 확장이 먼저 필요하고, 그 전까지 프론트는 계속 이 임시값을 쓴다.
+  - `packageName`은 DB 컬럼상 nullable이다(`entity/Company.java:24` — `nullable=false` 미지정, unique만 지정). 2026-07-30 기준 실 DB `company` 5행 전부 non-null이라 현재는 영향 없지만, null인 기업이 생기면 안드로이드 앱의 감시 대상 등록(`frontend/.../monitor/WatchedAppRegistry.kt:88-91`, `mapNotNull { org.packageName?.takeIf { it.isNotBlank() } ... }`)에서 **에러 없이 조용히 스킵**되어 오버레이/감시 대상에서 빠진다.
 
 ---
 
@@ -65,7 +74,7 @@
 - **URL**: `/companies/{companyId}/consent-items`
 - **설명**: 해당 기업의 필수+선택 동의 항목 전체를 5대 변수(DS/ES/TF/PC/AI) 점수와 함께 반환. `userId`가 체크한 선택동의 항목은 `checked: true`로 표시된다.
 - **Path Parameters**: `companyId` (Long, 필수)
-- **Query Parameters**: `userId` (Long, 필수) — 원안엔 없던 파라미터. 사용자별 체크 상태(`checked`)를 판단하려면 실제 구현상 필수다.
+- **Query Parameters**: `userId` (Long, 필수) — 원안엔 없던 파라미터. 사용자별 체크 상태(`checked`)를 판단하려면 실제 구현상 필수다. ⚠️ 이 엔드포인트도 2-1과 동일하게 **userId 존재 여부를 검증하지 않는다**(`ConsentApiService.getConsentItems()` → `personalRiskCalculator.findCheckedOptionalItemIds(userId, companyId)`가 단순 조회일 뿐 사용자 조회/검증이 없음). 2026-07-30 로컬 서버 실 호출로 `users` 테이블이 빈 상태에서 존재하지 않는 userId=1로도 200 정상 응답 확인.
 - **응답**: `List<ConsentItemResponse>`
 - **응답 예시**:
   ```json
@@ -120,6 +129,7 @@
   - `consentItemId`, `checked`는 원안에 없던 필드로 실제 응답엔 포함되어 있다.
   - 원안의 `changed_at`(변경 시각)은 응답 필드에 **없다** — 엔티티(`UserConsentCheck.changedAt`)에는 저장되지만 API 응답으로는 내려주지 않는다.
   - `newRiskGrade`는 2-1과 동일하게 실제 5단계 enum 값(`VERY_LOW`~`VERY_HIGH`) 기준.
+- **에러 케이스 — 존재하지 않는 userId**: 2-1/2-2와 달리 이 엔드포인트는 `ConsentApiService.toggleConsent()`(`ConsentApiService.java:85-86`)에서 `userRepository.findById(userId).orElseThrow(IllegalArgumentException)`으로 사용자 존재를 검증한다. 이 예외를 처리하는 `@ExceptionHandler`/`@ControllerAdvice`가 프로젝트에 없어(전체 grep 0건) Spring 기본 처리로 **HTTP 500**이 된다(400이 아님). 2026-07-30 로컬 서버에 존재하지 않는 userId=1로 실제 호출해 500 확인함(`{"status":500,"error":"Internal Server Error",...}`). 이 실패는 상태 변경(`check.setChecked`/`save`) 이전에 발생하므로 DB에는 아무 영향이 없다(호출 후 `user_consent_check`/`risk_score` 테이블 재조회로 부작용 없음 확인).
 
 ---
 
@@ -146,20 +156,32 @@
   ]
   ```
   - 필드명은 원안과 거의 동일(`total_score`→`totalScore`, `scored_at`→`scoredAt`)하되 camelCase.
-- **알려진 제약**: 이력을 실제로 쌓는 저장 로직(`PersonalRiskHistoryService.saveIfAbsent()`)은 구현되어 있지만, 이걸 언제·어디서 호출할지(2-3 토글 시마다 vs 별도 배치)가 아직 확정/연결되지 않은 상태다(코드 내 TODO로 명시됨). 따라서 현재 시점엔 이 엔드포인트를 호출해도 실제로 쌓인 이력이 없을 수 있다.
+- **알려진 제약 (2026-07-30 재확인)**: 이력을 실제로 쌓는 저장 로직(`PersonalRiskHistoryService.saveIfAbsent()`, `riskhistory/PersonalRiskHistoryService.java:38`)은 구현되어 있지만, 프로덕션 코드(컨트롤러/서비스/스케줄러 전체)에서 이 메서드를 호출하는 곳이 **한 군데도 없음을 grep으로 확인**했다 — 호출부는 `PersonalRiskHistoryServiceTest`/`PersonalRiskHistoryServiceIntegrationTest` 두 테스트 파일뿐이다. 이걸 언제·어디서 호출할지(2-3 토글 시마다 vs 별도 배치)가 아직 확정/연결되지 않은 상태이며 코드 내 TODO로 명시되어 있다(`PersonalRiskHistoryService.java:22-26`). 따라서 **현재 이 엔드포인트를 호출하면 항상 빈 배열(`[]`)이 반환되는 것이 버그가 아니라 이 미연결 상태 그대로의 정상 동작**이다.
 
 ---
 
 ## 2-5. 약관 변경 알림 목록 조회
 
-- **상태**: **미구현 (계획 단계)**
+- **상태**: **구현 완료 (2026-07-30)**
+- **관련 코드**: `notice/NoticeController.java`, `notice/NoticeResponse.java`, `repository/PolicySnapshotRepository.findAllByOrderByCrawledAtDesc()`
 - **Method**: GET
 - **URL**: `/notices`
-- **설명**: 크롤링 봇이 감지한 약관 변경 이력 목록 반환 (공지사항 탭)
-- **응답 예시**: `{ "company_name": "카카오", "crawled_at": "2026-06-29T00:00:00Z", "is_changed": true }`
-- **Query Parameters**: `page`(Int, 선택, 기본값 0), `size`(Int, 선택, 기본값 20)
-
-(변경 감지 로직 자체는 `PolicyChangeDetectionService`로 백엔드에 구현/검증되어 있으나, 이를 노출하는 조회 API는 아직 없다.)
+- **설명**: 전체 기업의 약관 스냅샷 전체를 확인 시각(`crawledAt`) 내림차순으로 페이징 반환한다(공지사항 탭). 기존에 이미 쌓여 있던 `PolicySnapshot`/`PolicyChangeDetectionService.detectAndSave()`(`crawler/PolicyChangeDetectionService.java:33-56`) 데이터를 그대로 재사용한다.
+- **Query Parameters**: `page`(Int, 선택, 기본값 0), `size`(Int, 선택, 기본값 20) — offset 방식 페이징(`PageRequest.of(page, size)`)
+- **응답**: `List<NoticeResponse>` (배열, 래핑 없음)
+- **응답 예시** (2026-07-30 로컬 서버 `GET /notices?page=0&size=20` 실제 호출 결과):
+  ```json
+  [
+    { "companyId": 5, "companyName": "당근마켓", "crawledAt": "2026-07-30T20:14:21.473038", "isChanged": false },
+    { "companyId": 4, "companyName": "토스", "crawledAt": "2026-07-30T20:14:17.288506", "isChanged": false },
+    { "companyId": 3, "companyName": "배달의민족", "crawledAt": "2026-07-30T20:14:09.253028", "isChanged": false },
+    { "companyId": 2, "companyName": "네이버", "crawledAt": "2026-07-30T20:13:55.408537", "isChanged": false },
+    { "companyId": 1, "companyName": "카카오", "crawledAt": "2026-07-30T20:13:51.296765", "isChanged": false }
+  ]
+  ```
+  - ⚠️ **`crawledAt`은 "변경 시각"이 아니라 "확인 시각"이다.** 약관이 실제로 바뀌지 않아도 매 크롤링(새벽 3시 배치/관리자 수동 트리거)마다 최신 레코드의 `crawledAt`만 갱신된다(`PolicyChangeDetectionService.detectAndSave()` — 해시 동일하면 새 레코드를 만들지 않고 기존 레코드의 `crawledAt`만 `LocalDateTime.now()`로 덮어씀). 실제로 변경이 있었는지는 `isChanged` 필드로 판단해야 한다.
+  - **`isChanged` 필드명 관련 실측 확인**: `NoticeResponse`는 record가 아니라 class + `isChanged()` getter로 만들었지만, 그것만으로는 Jackson이 여전히 "is" 접두사를 벗겨 `"changed"`로 직렬화한다(실제로 처음 구현·호출했을 때 `"changed":false`로 나오는 것을 확인함). `@JsonProperty("isChanged")`를 getter에 명시적으로 붙여야 응답 필드명이 정확히 `isChanged`로 고정된다 — 이 프로젝트에서 boolean 필드를 `isXxx`로 노출하려면 record든 class든 별도 조치(record는 컴포넌트명 그대로 직렬화되지만 그 이름 자체가 `isXxx`가 아니라 다른 걸로 오해하기 쉬우니, class는 `@JsonProperty` 없이는 항상 깎인다는 점을 유의).
+  - **타임존**: `crawledAt`은 UTC가 아니라 **KST 그대로** 저장·반환된다. `PolicySnapshot.crawledAt`도 `UserConsentHistory.changedAt`(2-8)과 동일하게 `LocalDateTime.now()`로 저장되고, 서버 JVM 기본 타임존이 Asia/Seoul(KST)이라 별도 변환 없이 이미 KST 값이다 — 2-8의 `changedAt`과 일관되게 이 API도 변환 없이 그대로 내려준다.
 
 ---
 
@@ -248,3 +270,40 @@
 ```json
 { "message": "이미 등록된 packageName입니다: com.kakao.talk" }
 ```
+
+---
+
+## 2-8. 동의 변경 이력 조회
+
+- **상태**: **구현됨, 원안에 없던 신규 엔드포인트 — 2026-07-30 확인 결과 이 문서에 계속 누락되어 있었어서 이번에 추가함**
+- **관련 코드**: `consenthistory/UserConsentHistoryController.java`, `consenthistory/UserConsentHistoryService.java`, `consenthistory/UserConsentHistoryItemDto.java`, 테이블 `sql/migration/V5__create_user_consent_history.sql`
+- **Method**: GET
+- **URL**: `/users/{userId}/consents/history`
+- **설명**: 2-3(PATCH 토글)이 발생할 때마다 `UserConsentHistoryRecorder`(`ConsentApiService.java:103`)가 이 이력 테이블에 append-only로 한 건씩 기록한다. `user_consent_check`는 "현재 상태"만 덮어써 이력이 안 남는 반면, 이 API는 변경 시각별 전체 이력을 그대로 보여준다.
+- **Path Parameters**: `userId` (Long, 필수)
+- **Query Parameters**: 없음
+- **응답**: `List<UserConsentHistoryItemDto>` (변경 시각 오름차순, 배열, 래핑 없음)
+- **응답 예시**:
+  ```json
+  [
+    {
+      "consentItemId": 268,
+      "itemName": "마케팅 정보 수신 동의",
+      "companyId": 1,
+      "companyName": "카카오",
+      "isChecked": true,
+      "changedAt": "2026-07-29T10:15:00"
+    },
+    {
+      "consentItemId": 268,
+      "itemName": "마케팅 정보 수신 동의",
+      "companyId": 1,
+      "companyName": "카카오",
+      "isChecked": false,
+      "changedAt": "2026-07-29T14:02:00"
+    }
+  ]
+  ```
+  - `consentItemId`/`itemName`/`companyId`/`companyName`은 이력 시점의 `ConsentItem`/`Company`를 조인해 채운 값(스냅샷이 아니라 현재 연관 엔티티 기준).
+  - 2-3 응답의 `checked`와 달리 이 응답은 `isChecked`(record 컴포넌트명 그대로 직렬화)다.
+  - 이 엔드포인트도 2-1/2-2와 동일하게 **userId 존재 여부를 검증하지 않는다** — 이력이 없거나 존재하지 않는 userId면 빈 배열 `[]`을 200으로 반환한다(`UserConsentHistoryRepository.findByUserIdOrderByChangedAtAsc`가 단순 조회이기 때문).

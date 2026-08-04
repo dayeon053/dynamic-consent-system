@@ -25,14 +25,14 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 /**
- * [알려진 이슈 회귀 감지용] {@code PolicyChangeDetectionService.detectAndSave()}(스냅샷 저장)와
- * {@code RiskPipelineService.analyzeAndSaveRisk()}(위험도 재산출)는 별도의 {@code @Transactional}
- * 경계를 갖는다. {@code PolicyCrawlScheduler.processCompany()} 자체는 트랜잭션이 아니라서, 스냅샷이
- * 이미 커밋된 뒤 위험도 재산출이 실패해도 스냅샷 커밋은 되돌릴 수 없다.
+ * [트랜잭션 경계 통합 확인용 — 2026-07-30, docs/known_issues.md "PolicySnapshot 저장과 위험도
+ * 재산출의 트랜잭션 경계 불일치" 해결] {@code PolicyCrawlProcessor.processCompany()}가
+ * {@code @Transactional}로 스냅샷 저장({@code PolicyChangeDetectionService.detectAndSave()})과
+ * 위험도 재산출({@code RiskPipelineService.analyzeAndSaveRisk()})을 하나의 트랜잭션으로 묶는다.
  *
- * 이 테스트는 "이게 맞는 동작"이라고 주장하는 게 아니라, 지금 실제로 이렇게 동작한다는 걸
- * 문서화하는 회귀 감지용이다. 재설계 여부/방향은 docs/known_issues.md에 제안만 남겨뒀고
- * 팀 논의 후 결정할 사안이라 구현하지 않았다. 기본 `./gradlew test`에서는 제외되고
+ * 이전에는 두 호출이 각각 별도 트랜잭션이라, 위험도 재산출이 실패해도 이미 커밋된 스냅샷은
+ * 되돌릴 수 없었다(회귀 감지 테스트로 그 동작을 문서화해뒀었다). 지금은 반대로 "위험도 재산출이
+ * 실패하면 스냅샷 저장도 함께 롤백되어야 한다"를 검증한다. 기본 `./gradlew test`에서는 제외되고
  * `./gradlew integrationTest`로만 실행된다.
  */
 @Tag("integration")
@@ -89,7 +89,7 @@ class PolicyCrawlSchedulerTransactionBoundaryIntegrationTest {
     }
 
     @Test
-    void runForCompany_leavesPolicySnapshotCommitted_whenRiskAnalysisFailsAfterSnapshotSaved() {
+    void runForCompany_rollsBackPolicySnapshotToo_whenRiskAnalysisFailsAfterSnapshotSaved() {
         when(policyBodyCrawler.fetchCleanText(anyString())).thenReturn("정책 원문");
         // LLM이 계속 파싱 불가능한 응답을 반환 -> LlmRetryModule 3회 재시도 모두 실패
         // -> analyzeAndSaveRisk()가 RuntimeException을 던짐
@@ -97,15 +97,13 @@ class PolicyCrawlSchedulerTransactionBoundaryIntegrationTest {
 
         assertThrows(RuntimeException.class, () -> policyCrawlScheduler.runForCompany(testCompanyId));
 
-        // 위험도 재산출은 실패했지만, 그 이전에 별도 트랜잭션으로 이미 커밋된 PolicySnapshot은
-        // 그대로 남아있다 — 이게 바로 트랜잭션 경계 불일치 문제다. 다음 크롤링 때 이 스냅샷과
-        // 해시가 같으면 "변경 없음"으로 판단되어, 이번에 실패한 위험도 재산출은 영구히
-        // 재시도되지 않는다.
+        // PolicyCrawlProcessor.processCompany()가 스냅샷 저장 + 위험도 재산출을 하나의
+        // 트랜잭션으로 묶으므로, 위험도 재산출 실패 시 스냅샷 저장도 함께 롤백되어 남지 않아야
+        // 한다 — "스냅샷은 최신인데 위험도는 비어있는" 상태가 더 이상 남지 않는다.
         Optional<PolicySnapshot> snapshot =
                 policySnapshotRepository.findFirstByCompany_CompanyIdOrderByCrawledAtDesc(testCompanyId);
-        assertTrue(snapshot.isPresent(),
-                "[알려진 이슈] 위험도 산출이 실패해도 PolicySnapshot은 이미 커밋되어 남아있다 (docs/known_issues.md 참고)");
-        assertEquals("정책 원문", snapshot.get().getRawText());
+        assertTrue(snapshot.isEmpty(),
+                "위험도 산출이 실패하면 같은 트랜잭션으로 묶인 PolicySnapshot 저장도 롤백되어야 한다");
 
         // ConsentItem/RiskScore는 analyzeAndSaveRisk() 실패로 저장되지 않아야 한다
         assertEquals(0, consentItemRepository.countByCompany_CompanyId(testCompanyId));

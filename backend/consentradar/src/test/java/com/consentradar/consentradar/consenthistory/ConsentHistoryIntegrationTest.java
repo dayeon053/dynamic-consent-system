@@ -94,11 +94,11 @@ class ConsentHistoryIntegrationTest {
 
     @Test
     void togglingConsent_recordsHistory_andGetHistoryReturnsInChronologicalOrder() throws InterruptedException {
-        consentApiService.toggleConsent(userId, optionalItemId); // 미체크 -> 체크
+        consentApiService.toggleConsent(userId, optionalItemId, null); // 미체크 -> 체크
         Thread.sleep(20);
-        consentApiService.toggleConsent(userId, optionalItemId); // 체크 -> 미체크
+        consentApiService.toggleConsent(userId, optionalItemId, null); // 체크 -> 미체크
         Thread.sleep(20);
-        consentApiService.toggleConsent(userId, optionalItemId); // 미체크 -> 체크
+        consentApiService.toggleConsent(userId, optionalItemId, null); // 미체크 -> 체크
 
         List<UserConsentHistoryItemDto> history = userConsentHistoryService.getHistory(userId);
 

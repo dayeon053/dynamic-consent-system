@@ -1,12 +1,7 @@
 package com.consentradar.consentradar.scheduler;
 
-import com.consentradar.consentradar.crawler.PolicyBodyCrawler;
-import com.consentradar.consentradar.crawler.PolicyChangeDetectionService;
 import com.consentradar.consentradar.entity.Company;
-import com.consentradar.consentradar.entity.PolicySnapshot;
-import com.consentradar.consentradar.pipeline.RiskPipelineService;
 import com.consentradar.consentradar.repository.CompanyRepository;
-import com.consentradar.consentradar.repository.PolicySnapshotRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -22,8 +17,9 @@ import java.util.List;
  * 파이프라인. 관리자 API 등에서 즉시 재사용할 수 있도록 실행 로직을 {@link #runPipeline()}과
  * {@link #runForCompany(Long)}으로 분리했다.
  *
- * 변경이 없는 기업까지 매번 LLM을 호출하지 않도록, 위험도 재산출은 "최초 수집이거나
- * 약관 내용이 실제로 바뀐 경우"에만 트리거한다.
+ * 기업 1건에 대한 실제 처리(크롤링+변경감지+조건부 위험도재산출, 트랜잭션 경계 포함)는
+ * {@link PolicyCrawlProcessor}에 위임한다 — 이 클래스 자체는 트랜잭션이 없는 얇은
+ * 오케스트레이터다.
  */
 @Component
 public class PolicyCrawlScheduler {
@@ -31,21 +27,12 @@ public class PolicyCrawlScheduler {
     private static final Logger log = LoggerFactory.getLogger(PolicyCrawlScheduler.class);
 
     private final CompanyRepository companyRepository;
-    private final PolicyBodyCrawler policyBodyCrawler;
-    private final PolicyChangeDetectionService policyChangeDetectionService;
-    private final PolicySnapshotRepository policySnapshotRepository;
-    private final RiskPipelineService riskPipelineService;
+    private final PolicyCrawlProcessor policyCrawlProcessor;
 
     public PolicyCrawlScheduler(CompanyRepository companyRepository,
-                                 PolicyBodyCrawler policyBodyCrawler,
-                                 PolicyChangeDetectionService policyChangeDetectionService,
-                                 PolicySnapshotRepository policySnapshotRepository,
-                                 RiskPipelineService riskPipelineService) {
+                                 PolicyCrawlProcessor policyCrawlProcessor) {
         this.companyRepository = companyRepository;
-        this.policyBodyCrawler = policyBodyCrawler;
-        this.policyChangeDetectionService = policyChangeDetectionService;
-        this.policySnapshotRepository = policySnapshotRepository;
-        this.riskPipelineService = riskPipelineService;
+        this.policyCrawlProcessor = policyCrawlProcessor;
     }
 
     @Scheduled(cron = "0 0 3 * * *")
@@ -68,7 +55,7 @@ public class PolicyCrawlScheduler {
 
         for (Company company : companies) {
             try {
-                CompanyCrawlResult result = processCompany(company);
+                CompanyCrawlResult result = policyCrawlProcessor.processCompany(company);
                 if (result.riskAnalysisTriggered()) {
                     riskAnalysisCount++;
                 }
@@ -94,31 +81,6 @@ public class PolicyCrawlScheduler {
     public CompanyCrawlResult runForCompany(Long companyId) {
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 companyId: " + companyId));
-        return processCompany(company);
-    }
-
-    /**
-     * 크롤링 → 변경감지 → (최초 수집이거나 변경 있으면) 위험도 재산출을 수행한다.
-     */
-    private CompanyCrawlResult processCompany(Company company) {
-        boolean isFirstCollection = policySnapshotRepository
-                .findFirstByCompany_CompanyIdOrderByCrawledAtDesc(company.getCompanyId())
-                .isEmpty();
-
-        String rawText = policyBodyCrawler.fetchCleanText(company.getPrivacyUrl());
-        // [알려진 이슈] detectAndSave()는 별도 @Transactional이라 여기서 스냅샷이 이미 커밋된다.
-        // 아래 analyzeAndSaveRisk()가 실패해도(예: LLM 재시도 소진) 이 커밋은 되돌릴 수 없어,
-        // "스냅샷은 최신인데 위험도는 재산출 안 됨" 상태가 남을 수 있다. 재설계 제안은
-        // docs/known_issues.md 참고 (다연과 논의 후 결정 — 지금은 회귀 감지 테스트만 있음:
-        // PolicyCrawlSchedulerTransactionBoundaryIntegrationTest).
-        PolicySnapshot snapshot = policyChangeDetectionService.detectAndSave(company, rawText);
-
-        boolean shouldAnalyze = isFirstCollection || snapshot.isChanged();
-        if (shouldAnalyze) {
-            riskPipelineService.analyzeAndSaveRisk(company, rawText);
-        }
-
-        return new CompanyCrawlResult(company.getCompanyId(), company.getCompanyName(),
-                snapshot.isChanged(), shouldAnalyze);
+        return policyCrawlProcessor.processCompany(company);
     }
 }

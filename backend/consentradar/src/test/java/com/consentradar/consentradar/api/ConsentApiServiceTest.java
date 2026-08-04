@@ -127,7 +127,7 @@ class ConsentApiServiceTest {
         when(riskScoreRepository.findTopByCompany_CompanyIdAndUser_UserIdAndIsRepresentativeTrueOrderByScoredAtDesc(
                 COMPANY_ID, USER_ID)).thenReturn(Optional.empty());
 
-        ConsentPatchResponse response = consentApiService.toggleConsent(USER_ID, 1L);
+        ConsentPatchResponse response = consentApiService.toggleConsent(USER_ID, 1L, null);
 
         assertTrue(response.isChecked());
         assertTrue(existing.isChecked(), "저장된 체크 레코드도 true로 반전돼야 한다");
@@ -147,10 +147,76 @@ class ConsentApiServiceTest {
         when(riskScoreRepository.findTopByCompany_CompanyIdAndUser_UserIdAndIsRepresentativeTrueOrderByScoredAtDesc(
                 COMPANY_ID, USER_ID)).thenReturn(Optional.empty());
 
-        ConsentPatchResponse response = consentApiService.toggleConsent(USER_ID, 1L);
+        ConsentPatchResponse response = consentApiService.toggleConsent(USER_ID, 1L, null);
 
         assertFalse(response.isChecked());
         assertFalse(existing.isChecked());
+    }
+
+    @Test
+    void toggleConsent_setsExplicitCheckedTrue_ratherThanFlipping_evenWhenAlreadyTrue() {
+        // PATCH 멱등성 개선(A안): desiredChecked가 주어지면 현재 상태와 무관하게 그 값 그대로
+        // 저장돼야 한다 — 이미 true인 상태에서 checked=true를 또 보내도(재시도 등) false로
+        // 뒤집히면 안 된다.
+        ConsentItem required = consentItem(1L, ConsentItem.ItemType.REQUIRED);
+        UserConsentCheck existing = userConsentCheck(required, true);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user()));
+        when(consentItemRepository.findById(1L)).thenReturn(Optional.of(required));
+        when(userConsentCheckRepository.findByUser_UserIdAndConsentItem_ConsentItemId(USER_ID, 1L))
+                .thenReturn(Optional.of(existing));
+        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(required));
+        when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
+                .thenReturn(List.of(existing));
+        when(riskScoreRepository.findTopByCompany_CompanyIdAndUser_UserIdAndIsRepresentativeTrueOrderByScoredAtDesc(
+                COMPANY_ID, USER_ID)).thenReturn(Optional.empty());
+
+        ConsentPatchResponse response = consentApiService.toggleConsent(USER_ID, 1L, true);
+
+        assertTrue(response.isChecked());
+        assertTrue(existing.isChecked());
+    }
+
+    @Test
+    void toggleConsent_setsExplicitCheckedFalse_ratherThanFlipping_evenWhenAlreadyFalse() {
+        ConsentItem required = consentItem(1L, ConsentItem.ItemType.REQUIRED);
+        UserConsentCheck existing = userConsentCheck(required, false);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user()));
+        when(consentItemRepository.findById(1L)).thenReturn(Optional.of(required));
+        when(userConsentCheckRepository.findByUser_UserIdAndConsentItem_ConsentItemId(USER_ID, 1L))
+                .thenReturn(Optional.of(existing));
+        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(required));
+        when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
+                .thenReturn(List.of(existing));
+        when(riskScoreRepository.findTopByCompany_CompanyIdAndUser_UserIdAndIsRepresentativeTrueOrderByScoredAtDesc(
+                COMPANY_ID, USER_ID)).thenReturn(Optional.empty());
+
+        ConsentPatchResponse response = consentApiService.toggleConsent(USER_ID, 1L, false);
+
+        assertFalse(response.isChecked());
+        assertFalse(existing.isChecked());
+    }
+
+    @Test
+    void toggleConsent_repeatedCallsWithSameExplicitChecked_areIdempotent() {
+        // 같은 요청이 중복 전송돼도(네트워크 재시도 등) 반전 방식과 달리 몇 번을 다시 불러도
+        // 항상 같은 최종 상태로 수렴해야 한다.
+        ConsentItem required = consentItem(1L, ConsentItem.ItemType.REQUIRED);
+        UserConsentCheck existing = userConsentCheck(required, false);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user()));
+        when(consentItemRepository.findById(1L)).thenReturn(Optional.of(required));
+        when(userConsentCheckRepository.findByUser_UserIdAndConsentItem_ConsentItemId(USER_ID, 1L))
+                .thenReturn(Optional.of(existing));
+        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(required));
+        when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
+                .thenReturn(List.of(existing));
+        when(riskScoreRepository.findTopByCompany_CompanyIdAndUser_UserIdAndIsRepresentativeTrueOrderByScoredAtDesc(
+                COMPANY_ID, USER_ID)).thenReturn(Optional.empty());
+
+        consentApiService.toggleConsent(USER_ID, 1L, true);
+        ConsentPatchResponse second = consentApiService.toggleConsent(USER_ID, 1L, true);
+
+        assertTrue(second.isChecked());
+        assertTrue(existing.isChecked());
     }
 
     @Test
@@ -166,7 +232,7 @@ class ConsentApiServiceTest {
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
                 .thenReturn(List.of()); // 새로 만든 체크는 저장 목업이라 리포지토리엔 아직 없음
 
-        ConsentPatchResponse response = consentApiService.toggleConsent(USER_ID, 2L);
+        ConsentPatchResponse response = consentApiService.toggleConsent(USER_ID, 2L, null);
 
         // 기본값 false에서 반전되어 true(체크됨)여야 한다 — 신규 레코드 생성 케이스
         assertTrue(response.isChecked());
@@ -180,7 +246,7 @@ class ConsentApiServiceTest {
     void toggleConsent_throwsIllegalArgumentException_whenUserNotFound() {
         when(userRepository.findById(USER_ID)).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class, () -> consentApiService.toggleConsent(USER_ID, 1L));
+        assertThrows(IllegalArgumentException.class, () -> consentApiService.toggleConsent(USER_ID, 1L, null));
     }
 
     @Test
@@ -188,7 +254,7 @@ class ConsentApiServiceTest {
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user()));
         when(consentItemRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class, () -> consentApiService.toggleConsent(USER_ID, 1L));
+        assertThrows(IllegalArgumentException.class, () -> consentApiService.toggleConsent(USER_ID, 1L, null));
     }
 
     @Test
@@ -207,7 +273,7 @@ class ConsentApiServiceTest {
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
                 .thenReturn(List.of(existing));
 
-        ConsentPatchResponse response = consentApiService.toggleConsent(USER_ID, 1L);
+        ConsentPatchResponse response = consentApiService.toggleConsent(USER_ID, 1L, null);
 
         assertNull(response.getNewRiskScore());
         assertNull(response.getNewRiskGrade());
@@ -228,7 +294,7 @@ class ConsentApiServiceTest {
         when(riskScoreRepository.findTopByCompany_CompanyIdAndUser_UserIdAndIsRepresentativeTrueOrderByScoredAtDesc(
                 COMPANY_ID, USER_ID)).thenReturn(Optional.empty());
 
-        consentApiService.toggleConsent(USER_ID, 1L);
+        consentApiService.toggleConsent(USER_ID, 1L, null);
 
         ArgumentCaptor<RiskScore> captor = ArgumentCaptor.forClass(RiskScore.class);
         verify(riskScoreRepository).saveAndFlush(captor.capture());
@@ -255,7 +321,7 @@ class ConsentApiServiceTest {
         when(riskScoreRepository.findTopByCompany_CompanyIdAndUser_UserIdAndIsRepresentativeTrueOrderByScoredAtDesc(
                 COMPANY_ID, USER_ID)).thenReturn(Optional.of(existingRep));
 
-        consentApiService.toggleConsent(USER_ID, 1L);
+        consentApiService.toggleConsent(USER_ID, 1L, null);
 
         ArgumentCaptor<RiskScore> captor = ArgumentCaptor.forClass(RiskScore.class);
         verify(riskScoreRepository).saveAndFlush(captor.capture());
@@ -274,7 +340,7 @@ class ConsentApiServiceTest {
         // 비정상 케이스: 이 기업엔 동의 항목이 하나도 없다고 응답하도록 목업
         when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of());
 
-        ConsentPatchResponse response = consentApiService.toggleConsent(USER_ID, 1L);
+        ConsentPatchResponse response = consentApiService.toggleConsent(USER_ID, 1L, null);
 
         assertNull(response.getNewRiskScore());
         assertNull(response.getNewRiskGrade());
@@ -305,7 +371,7 @@ class ConsentApiServiceTest {
         when(riskScoreRepository.findTopByCompany_CompanyIdAndUser_UserIdAndIsRepresentativeTrueOrderByScoredAtDesc(
                 COMPANY_ID, USER_ID)).thenReturn(Optional.empty());
 
-        ConsentPatchResponse response = consentApiService.toggleConsent(USER_ID, 2L);
+        ConsentPatchResponse response = consentApiService.toggleConsent(USER_ID, 2L, null);
 
         assertTrue(response.isChecked());
         // 선택항목까지 반영된 최댓값(45.5)이 응답에 나와야 한다 — 필수항목만의 3.0이 아니라
