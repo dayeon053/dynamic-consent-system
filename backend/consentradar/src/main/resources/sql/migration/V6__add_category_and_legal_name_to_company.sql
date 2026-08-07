@@ -1,6 +1,7 @@
 -- Flyway/Liquibase 미사용 (ddl-auto: update로 운영 중) — 참고/운영 반영용 DDL 스크립트
 -- company에 category(기업 카테고리), legal_name(법인 정식 명칭) 컬럼을 추가하고 기존
--- 5개 기업(카카오/네이버/배달의민족/토스/당근마켓) 데이터를 backfill한다.
+-- 5개 기업(카카오/네이버/배달의민족/토스/당근마켓) 데이터를 backfill한다. 겸사겸사 그동안
+-- 비어있던 package_name(네이버/배달의민족/당근마켓)도 같이 채운다.
 --
 -- 배경: 기업상세 '정보' 탭(태스크 4-8)이 지금까지 프론트에서 category="기타",
 -- legalName=companyName으로 하드코딩된 임시값을 쓰고 있었다(CompanyMapper.kt). 실제 값을
@@ -18,11 +19,27 @@ ALTER TABLE company
     ADD COLUMN legal_name VARCHAR(100) NULL;
 
 -- 2. 기존 5개 기업 backfill (company_name 기준 매칭)
-UPDATE company SET category = 'SNS',      legal_name = '(주)카카오'          WHERE company_name = '카카오';
-UPDATE company SET category = '포털',     legal_name = '네이버 주식회사'      WHERE company_name = '네이버';
-UPDATE company SET category = '배달',     legal_name = '주식회사 우아한형제들' WHERE company_name = '배달의민족';
-UPDATE company SET category = '금융',     legal_name = '(주)비바리퍼블리카'    WHERE company_name = '토스';
-UPDATE company SET category = '중고거래', legal_name = '당근마켓 주식회사'    WHERE company_name = '당근마켓';
+-- package_name은 이미 값이 있는 로컬 DB(다른 팀원이 직접 등록해둔 경우 등)를 덮어쓰지
+-- 않도록 IS NULL 조건을 같이 건다. 값 출처: 이재은님 더미데이터 + 실제 플레이스토어 확인
+-- (2026-08-04). 배달의민족 'com.sampleapp'는 오타가 아니라 실제 배민 앱의 패키지명이다
+-- (개발 초기 실수가 그대로 굳어져 지금도 쓰이는 걸로 알려져 있음).
+UPDATE company SET category = 'SNS',      legal_name = '(주)카카오'
+    WHERE company_name = '카카오';
+UPDATE company SET category = '포털',     legal_name = '네이버 주식회사'
+    WHERE company_name = '네이버';
+UPDATE company SET category = '배달',     legal_name = '주식회사 우아한형제들'
+    WHERE company_name = '배달의민족';
+UPDATE company SET category = '금융',     legal_name = '(주)비바리퍼블리카'
+    WHERE company_name = '토스';
+UPDATE company SET category = '중고거래', legal_name = '(주)당근마켓'
+    WHERE company_name = '당근마켓';
+
+UPDATE company SET package_name = 'com.nhn.android.search'
+    WHERE company_name = '네이버' AND package_name IS NULL;
+UPDATE company SET package_name = 'com.sampleapp'
+    WHERE company_name = '배달의민족' AND package_name IS NULL;
+UPDATE company SET package_name = 'com.towneers.www'
+    WHERE company_name = '당근마켓' AND package_name IS NULL;
 
 -- 3. backfill 확인 후 NOT NULL로 전환
 ALTER TABLE company
