@@ -1,16 +1,23 @@
 package com.consentradar.consentradar.scheduler;
 
+import com.consentradar.consentradar.api.PersonalRiskCalculator;
 import com.consentradar.consentradar.crawler.PolicyBodyCrawler;
 import com.consentradar.consentradar.crawler.PolicyChangeDetectionService;
 import com.consentradar.consentradar.entity.Company;
 import com.consentradar.consentradar.entity.PolicySnapshot;
+import com.consentradar.consentradar.entity.User;
 import com.consentradar.consentradar.pipeline.RiskPipelineService;
 import com.consentradar.consentradar.repository.PolicySnapshotRepository;
+import com.consentradar.consentradar.repository.UserConsentCheckRepository;
+import com.consentradar.consentradar.riskhistory.PersonalRiskHistoryService;
+import com.dynamicconsent.model.RiskGrade;
+import com.dynamicconsent.model.RiskResult;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -45,9 +52,19 @@ class PolicyCrawlProcessorTest {
     @Mock
     private RiskPipelineService riskPipelineService;
 
+    @Mock
+    private UserConsentCheckRepository userConsentCheckRepository;
+
+    @Mock
+    private PersonalRiskCalculator personalRiskCalculator;
+
+    @Mock
+    private PersonalRiskHistoryService personalRiskHistoryService;
+
     private PolicyCrawlProcessor newProcessor() {
         return new PolicyCrawlProcessor(
-                policyBodyCrawler, policyChangeDetectionService, policySnapshotRepository, riskPipelineService);
+                policyBodyCrawler, policyChangeDetectionService, policySnapshotRepository, riskPipelineService,
+                userConsentCheckRepository, personalRiskCalculator, personalRiskHistoryService);
     }
 
     private Company company() {
@@ -123,5 +140,88 @@ class PolicyCrawlProcessorTest {
         assertEquals(company.getCompanyId(), result.companyId());
         assertEquals(company.getCompanyName(), result.companyName());
         verify(riskPipelineService, times(1)).analyzeAndSaveRisk(company, "본문");
+    }
+
+    // ---- 개인 맞춤 위험도 히스토리 배치 연결 ----
+
+    @Test
+    void processCompany_savesPersonalRiskHistory_forEachInterestedUser_evenWhenPolicyUnchanged() {
+        // Q3 결정: 정책 변경 여부(shouldAnalyze)와 무관하게 매일 밤 무조건 실행되어야 한다.
+        when(policyBodyCrawler.fetchCleanText(anyString())).thenReturn("본문 텍스트");
+        when(policySnapshotRepository.findFirstByCompany_CompanyIdOrderByCrawledAtDesc(anyLong()))
+                .thenReturn(Optional.of(new PolicySnapshot()));
+        PolicySnapshot unchanged = new PolicySnapshot();
+        unchanged.setChanged(false);
+        when(policyChangeDetectionService.detectAndSave(any(Company.class), anyString())).thenReturn(unchanged);
+
+        Company company = company();
+        User userA = user(1L);
+        User userB = user(2L);
+        when(userConsentCheckRepository.findDistinctUsersByConsentItem_Company_CompanyId(company.getCompanyId()))
+                .thenReturn(List.of(userA, userB));
+        RiskResult resultA = new RiskResult(10.0, RiskGrade.LOW);
+        RiskResult resultB = new RiskResult(20.0, RiskGrade.MEDIUM);
+        when(personalRiskCalculator.calculate(1L, company.getCompanyId())).thenReturn(resultA);
+        when(personalRiskCalculator.calculate(2L, company.getCompanyId())).thenReturn(resultB);
+
+        newProcessor().processCompany(company);
+
+        verify(riskPipelineService, never()).analyzeAndSaveRisk(any(Company.class), anyString());
+        verify(personalRiskHistoryService).saveIfAbsent(userA, company, resultA);
+        verify(personalRiskHistoryService).saveIfAbsent(userB, company, resultB);
+    }
+
+    @Test
+    void processCompany_skipsPersonalRiskHistorySave_whenCalculatorReturnsNull() {
+        when(policyBodyCrawler.fetchCleanText(anyString())).thenReturn("본문 텍스트");
+        when(policySnapshotRepository.findFirstByCompany_CompanyIdOrderByCrawledAtDesc(anyLong()))
+                .thenReturn(Optional.of(new PolicySnapshot()));
+        PolicySnapshot unchanged = new PolicySnapshot();
+        unchanged.setChanged(false);
+        when(policyChangeDetectionService.detectAndSave(any(Company.class), anyString())).thenReturn(unchanged);
+
+        Company company = company();
+        User userA = user(1L);
+        when(userConsentCheckRepository.findDistinctUsersByConsentItem_Company_CompanyId(company.getCompanyId()))
+                .thenReturn(List.of(userA));
+        when(personalRiskCalculator.calculate(1L, company.getCompanyId())).thenReturn(null);
+
+        newProcessor().processCompany(company);
+
+        verify(personalRiskHistoryService, never()).saveIfAbsent(any(User.class), any(Company.class), any());
+    }
+
+    @Test
+    void processCompany_skipsOnlyTheAffectedUser_whenPersonalRiskCalculationFailsForOneUser() {
+        // 사용자 한 명의 동의 항목 데이터가 잘못돼 있어도(IllegalArgumentException) 이 기업의
+        // 크롤링/위험도 재산출 자체는 실패하지 않고, 나머지 정상 사용자는 그대로 저장돼야 한다.
+        when(policyBodyCrawler.fetchCleanText(anyString())).thenReturn("본문 텍스트");
+        when(policySnapshotRepository.findFirstByCompany_CompanyIdOrderByCrawledAtDesc(anyLong()))
+                .thenReturn(Optional.of(new PolicySnapshot()));
+        PolicySnapshot unchanged = new PolicySnapshot();
+        unchanged.setChanged(false);
+        when(policyChangeDetectionService.detectAndSave(any(Company.class), anyString())).thenReturn(unchanged);
+
+        Company company = company();
+        User corruptedUser = user(1L);
+        User normalUser = user(2L);
+        when(userConsentCheckRepository.findDistinctUsersByConsentItem_Company_CompanyId(company.getCompanyId()))
+                .thenReturn(List.of(corruptedUser, normalUser));
+        when(personalRiskCalculator.calculate(1L, company.getCompanyId()))
+                .thenThrow(new IllegalArgumentException("유효하지 않은 DS 점수"));
+        RiskResult normalResult = new RiskResult(10.0, RiskGrade.LOW);
+        when(personalRiskCalculator.calculate(2L, company.getCompanyId())).thenReturn(normalResult);
+
+        CompanyCrawlResult result = newProcessor().processCompany(company);
+
+        assertEquals(company.getCompanyId(), result.companyId(), "한 사용자의 계산 실패가 전체 결과에 영향을 주면 안 된다");
+        verify(personalRiskHistoryService, never()).saveIfAbsent(eq(corruptedUser), any(Company.class), any());
+        verify(personalRiskHistoryService).saveIfAbsent(normalUser, company, normalResult);
+    }
+
+    private User user(Long id) {
+        User user = new User();
+        user.setUserId(id);
+        return user;
     }
 }

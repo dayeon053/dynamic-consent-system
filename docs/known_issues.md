@@ -1,5 +1,62 @@
 # Known Issues
 
+## [해결됨] PATCH 토글이 위험도 히스토리를 append-only로 쌓지 못하던 버그
+
+작업일: 2026-08-08 (발견 및 해결, 같은 날)
+관련 코드: `ConsentApiService.toggleConsent()`, `PersonalRiskHistoryService`(`saveOrUpdateToday()`
+신규), `PolicyCrawlProcessor.processCompany()`, `RiskScoreRepository`,
+`UserConsentCheckRepository.findDistinctUsersByConsentItem_Company_CompanyId()`(신규)
+관련 테스트: `ConsentApiServiceRiskHistoryIntegrationTest`(신규), `PersonalRiskHistoryServiceTest`
+(`saveOrUpdateToday` 케이스 추가), `PolicyCrawlProcessorTest`(배치 연결 케이스 3건 추가)
+
+### 배경 — 발견 경위
+`PersonalRiskHistoryService.saveIfAbsent()`(날짜별 append-only 저장)는 구현되어 있었지만
+실제로는 어디서도 호출되지 않는 죽은 코드였다(2-4 위험도 이력 API 연결 작업 중 발견). 이 배치
+연결 작업을 하던 중, PATCH 토글 경로(`ConsentApiService.toggleConsent()`)가 **이미 자체적으로**
+개인 맞춤 대표 `RiskScore`를 저장하고 있었는데, 그 로직이 `saveIfAbsent()`와는 전혀 다른 방식
+(그리고 버그가 있는 방식)으로 동작하고 있다는 게 드러났다.
+
+### 증상
+기존 `toggleConsent()`는 `RiskScoreRepository
+.findTopByCompany_CompanyIdAndUser_UserIdAndIsRepresentativeTrueOrderByScoredAtDesc()`로
+"이 사용자+기업의 가장 최근 대표 row"를 **날짜와 무관하게** 조회한 뒤, 있으면 그 row를 그대로
+재사용해 점수/등급을 갱신하고 **`scoredAt`까지 오늘 날짜로 덮어썼다**. 즉:
+
+- 사용자가 어제 토글해서 어제자 row가 생겼다면, 오늘 다시 토글할 때 새 row가 생기는 게 아니라
+  **어제 row 자체가 오늘 날짜로 바뀌어버린다.** 어제자 데이터는 사라진다.
+- 결과적으로 (user, company) 조합당 대표 row가 항상 정확히 1개만 존재하게 되어, 위험도 추이
+  히스토리(`GET /users/{userId}/companies/{companyId}/risk-history`, 2-4 API)가 사실상 전혀
+  쌓이지 않는 문제였다. 실제로 로컬에서 PATCH를 한 번 호출한 직후 이 엔드포인트를 호출하면
+  오늘자 데이터 1건만 반환되고, 그 이전에 다른 날짜로 저장해뒀던 히스토리는 실제로 사라져
+  있음을 재현 확인했다.
+
+### 조치
+1. `RiskScoreRepository`에 `findByUser_UserIdAndCompany_CompanyIdAndScoredAtAndIsRepresentativeTrue()`
+   (날짜까지 조건에 포함)를 추가하고, 문제의 `findTopBy...OrderByScoredAtDesc()`는 완전히
+   제거했다(대체 후 사용처 없음 확인).
+2. `PersonalRiskHistoryService`에 `saveOrUpdateToday()`를 신규 추가 — 오늘자 row가 있으면
+   최신 점수로 갱신(같은 날 여러 번 토글해도 오늘자 row는 1건 유지), 없으면 새로 만든다.
+   `RiskScore`의 기존 유니크 제약(`user_id, company_id, scored_at, is_representative`)과
+   `@Version` 낙관적 락을 그대로 활용하므로, 동시 토글 경합 시 `ConcurrentUpdateRetrier`가
+   재시도하는 기존 메커니즘은 변경 없이 그대로 유효하다.
+3. `toggleConsent()`는 이제 `saveOrUpdateToday()`에 위임한다 — 서비스 내부에서 직접
+   `RiskScoreRepository`를 다루지 않으므로 `RiskScoreRepository` 의존성 자체를 제거했다.
+4. 그동안 어디서도 호출되지 않던 `saveIfAbsent()`는 배치(`PolicyCrawlProcessor.processCompany()`)
+   에 연결했다. 정책 변경 여부와 무관하게 매일 밤, 해당 기업에 `UserConsentCheck`가 있는(=이
+   기업을 실제로 접한) 사용자 전원에 대해 개인 맞춤 위험도를 계산해 저장한다. 대상 사용자
+   조회는 `UserConsentCheckRepository`에 신규 추가한
+   `findDistinctUsersByConsentItem_Company_CompanyId()`(JPQL `SELECT DISTINCT`)가 담당한다.
+   사용자 한 명의 동의 항목 데이터가 잘못돼 있어 계산이 실패해도(`IllegalArgumentException`)
+   그 사용자만 건너뛰고 나머지 사용자·이 기업의 크롤링/위험도 재산출 자체는 영향받지
+   않는다(`ConsentApiService.safeCalculate()`와 동일한 방어 패턴).
+
+### 검증
+`ConsentApiServiceRiskHistoryIntegrationTest`(신규, 실 MySQL)로 다음을 확인했다: (1) 과거
+날짜에 미리 심어둔 히스토리 row가 있는 상태에서 오늘 PATCH를 호출하면 과거 row는 그대로
+남고 오늘자 row가 새로 추가된다 — append-only가 실제로 보존됨. (2) 같은 날 PATCH를 여러 번
+호출해도 오늘자 row는 1건으로 유지된다(중복 없음). (3) PATCH로 이미 저장된 오늘자 값을
+`saveIfAbsent()`가 나중에 호출돼도 덮어쓰지 않는다(skip 의미론 확인).
+
 ## [해결됨] PolicySnapshot 저장과 위험도 재산출의 트랜잭션 경계 불일치
 
 작업일: 2026-07-26 (발견) / 2026-07-30 (해결)
