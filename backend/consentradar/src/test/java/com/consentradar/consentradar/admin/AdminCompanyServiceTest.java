@@ -33,12 +33,15 @@ class AdminCompanyServiceTest {
 
     @Test
     void createCompany_savesAndReturnsCompany_whenRequestIsValid() {
-        CreateCompanyRequest request = new CreateCompanyRequest("카카오", "com.kakao.talk", "https://privacy.example.com", true);
+        CreateCompanyRequest request = new CreateCompanyRequest(
+                "카카오", "(주)카카오", "SNS", "com.kakao.talk", "https://privacy.example.com", true);
         when(companyRepository.save(any(Company.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Company saved = newService().createCompany(request);
 
         assertEquals("카카오", saved.getCompanyName());
+        assertEquals("(주)카카오", saved.getLegalName());
+        assertEquals("SNS", saved.getCategory());
         assertEquals("com.kakao.talk", saved.getPackageName());
         assertEquals("https://privacy.example.com", saved.getPrivacyUrl());
         assertEquals(true, saved.isIsmsCertified());
@@ -46,7 +49,26 @@ class AdminCompanyServiceTest {
 
     @Test
     void createCompany_throwsIllegalArgumentException_whenCompanyNameIsBlank() {
-        CreateCompanyRequest request = new CreateCompanyRequest("  ", "com.kakao.talk", "https://privacy.example.com", false);
+        CreateCompanyRequest request = new CreateCompanyRequest(
+                "  ", "(주)카카오", "SNS", "com.kakao.talk", "https://privacy.example.com", false);
+
+        assertThrows(IllegalArgumentException.class, () -> newService().createCompany(request));
+        verify(companyRepository, never()).save(any());
+    }
+
+    @Test
+    void createCompany_throwsIllegalArgumentException_whenLegalNameIsBlank() {
+        CreateCompanyRequest request = new CreateCompanyRequest(
+                "카카오", "  ", "SNS", "com.kakao.talk", "https://privacy.example.com", false);
+
+        assertThrows(IllegalArgumentException.class, () -> newService().createCompany(request));
+        verify(companyRepository, never()).save(any());
+    }
+
+    @Test
+    void createCompany_throwsIllegalArgumentException_whenCategoryIsBlank() {
+        CreateCompanyRequest request = new CreateCompanyRequest(
+                "카카오", "(주)카카오", "  ", "com.kakao.talk", "https://privacy.example.com", false);
 
         assertThrows(IllegalArgumentException.class, () -> newService().createCompany(request));
         verify(companyRepository, never()).save(any());
@@ -54,7 +76,8 @@ class AdminCompanyServiceTest {
 
     @Test
     void createCompany_throwsCompanyConflictException_whenPackageNameAlreadyExists() {
-        CreateCompanyRequest request = new CreateCompanyRequest("카카오", "com.kakao.talk", "https://privacy.example.com", false);
+        CreateCompanyRequest request = new CreateCompanyRequest(
+                "카카오", "(주)카카오", "SNS", "com.kakao.talk", "https://privacy.example.com", false);
         when(companyRepository.save(any(Company.class))).thenThrow(new DataIntegrityViolationException("dup"));
 
         assertThrows(CompanyConflictException.class, () -> newService().createCompany(request));

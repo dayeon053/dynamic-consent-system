@@ -36,6 +36,8 @@
     {
       "companyId": 1,
       "companyName": "카카오",
+      "legalName": "(주)카카오",
+      "category": "SNS",
       "packageName": "com.kakao.talk",
       "privacyUrl": "https://www.kakaocorp.com/page/detail/9610",
       "ismsCertified": false,
@@ -44,6 +46,7 @@
     }
   ]
   ```
+  - `legalName`/`category`는 마이그레이션 V6(`sql/migration/V6__add_category_and_legal_name_to_company.sql`)에서 추가된 필드로, 기업상세 '정보' 탭(태스크 4-8)에 쓰인다.
   - `riskGrade`는 원안의 `"DANGEROUS"` 같은 임의 문자열이 아니라 실제 5단계 enum(`VERY_LOW` / `LOW` / `MEDIUM` / `HIGH` / `VERY_HIGH`) 중 하나다.
   - 해당 기업에 동의 항목이 없어 위험도를 계산할 수 없으면 `riskScore`/`riskGrade`는 `null`로 내려간다.
   - ⚠️ **`category`/`logoText`/`logoColor` 필드 자체가 응답에 없다.** `Company` 엔티티(`entity/Company.java:15-58`)와 `CompanyRiskResponse` DTO(`api/dto/CompanyRiskResponse.java`) 어디에도 이 3개 필드가 없음을 코드로 확인함(백엔드 전체 grep 0건). **오해 정정**: "백엔드 CompanyMapper가 하드코딩한다"는 원래 가설과 달리, 백엔드에는 이 이름의 매퍼 자체가 없다 — 값을 하드코딩하는 지점은 **프론트엔드**다. 안드로이드 앱 `frontend/app/src/main/java/com/dynamicconsent/data/remote/CompanyMapper.kt:33-37`에서 서버가 안 주는 값을 클라이언트가 임시로 채워 넣는다:
@@ -232,17 +235,21 @@
   ```json
   {
     "companyName": "카카오",
+    "legalName": "(주)카카오",
+    "category": "SNS",
     "packageName": "com.kakao.talk",
     "privacyUrl": "https://www.kakaocorp.com/page/detail/9610",
     "ismsCertified": false
   }
   ```
-  - `companyName`/`packageName`/`privacyUrl`은 필수(비어있으면 400)
+  - `companyName`/`legalName`/`category`/`packageName`/`privacyUrl`은 필수(비어있으면 400) — `legalName`/`category`는 마이그레이션 V6에서 추가됨
 - **응답**: `CompanyResponse` (HTTP 201)
   ```json
   {
     "companyId": 6,
     "companyName": "카카오",
+    "legalName": "(주)카카오",
+    "category": "SNS",
     "packageName": "com.kakao.talk",
     "privacyUrl": "https://www.kakaocorp.com/page/detail/9610",
     "ismsCertified": false,

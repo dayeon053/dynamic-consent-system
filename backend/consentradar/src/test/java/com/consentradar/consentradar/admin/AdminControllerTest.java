@@ -31,6 +31,8 @@ class AdminControllerTest {
         Company company = new Company();
         company.setCompanyId(1L);
         company.setCompanyName("카카오");
+        company.setLegalName("(주)카카오");
+        company.setCategory("SNS");
         company.setPackageName("com.kakao.talk");
         company.setPrivacyUrl("https://privacy.example.com");
         company.setIsmsCertified(true);
@@ -39,7 +41,7 @@ class AdminControllerTest {
         mockMvc.perform(post("/admin/companies")
                         .contentType("application/json")
                         .content("""
-                                {"companyName":"카카오","packageName":"com.kakao.talk","privacyUrl":"https://privacy.example.com","ismsCertified":true}
+                                {"companyName":"카카오","legalName":"(주)카카오","category":"SNS","packageName":"com.kakao.talk","privacyUrl":"https://privacy.example.com","ismsCertified":true}
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.companyId").value(1))
@@ -54,7 +56,7 @@ class AdminControllerTest {
         mockMvc.perform(post("/admin/companies")
                         .contentType("application/json")
                         .content("""
-                                {"companyName":"카카오","packageName":"com.kakao.talk","privacyUrl":"https://privacy.example.com","ismsCertified":false}
+                                {"companyName":"카카오","legalName":"(주)카카오","category":"SNS","packageName":"com.kakao.talk","privacyUrl":"https://privacy.example.com","ismsCertified":false}
                                 """))
                 .andExpect(status().isConflict());
     }

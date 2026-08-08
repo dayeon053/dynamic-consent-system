@@ -21,6 +21,12 @@ public class Company {
     @Column(nullable = false, length = 100)
     private String companyName;           // 기업명 (예: 카카오)
 
+    @Column(nullable = false, length = 100)
+    private String legalName;             // 법인 정식 명칭 (예: (주)카카오)
+
+    @Column(nullable = false, length = 50)
+    private String category;              // 기업 카테고리 (예: SNS, 금융)
+
     @Column(unique = true, length = 200)
     private String packageName;           // 앱 패키지명 (예: com.kakao.talk)
 
