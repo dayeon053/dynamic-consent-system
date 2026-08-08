@@ -159,7 +159,11 @@
   ]
   ```
   - 필드명은 원안과 거의 동일(`total_score`→`totalScore`, `scored_at`→`scoredAt`)하되 camelCase.
-- **알려진 제약 (2026-07-30 재확인)**: 이력을 실제로 쌓는 저장 로직(`PersonalRiskHistoryService.saveIfAbsent()`, `riskhistory/PersonalRiskHistoryService.java:38`)은 구현되어 있지만, 프로덕션 코드(컨트롤러/서비스/스케줄러 전체)에서 이 메서드를 호출하는 곳이 **한 군데도 없음을 grep으로 확인**했다 — 호출부는 `PersonalRiskHistoryServiceTest`/`PersonalRiskHistoryServiceIntegrationTest` 두 테스트 파일뿐이다. 이걸 언제·어디서 호출할지(2-3 토글 시마다 vs 별도 배치)가 아직 확정/연결되지 않은 상태이며 코드 내 TODO로 명시되어 있다(`PersonalRiskHistoryService.java:22-26`). 따라서 **현재 이 엔드포인트를 호출하면 항상 빈 배열(`[]`)이 반환되는 것이 버그가 아니라 이 미연결 상태 그대로의 정상 동작**이다.
+- **저장 경로 (2026-08-08 배치 연결 완료)**: 이력을 쌓는 저장 로직은 두 곳에서 호출된다.
+  - **배치**: `PolicyCrawlProcessor.processCompany()`가 정책 변경 여부(shouldAnalyze)와 무관하게 매일 밤 무조건, 해당 기업에 `UserConsentCheck` row가 있는(=이 기업을 실제로 접한) 사용자 전원에 대해 `PersonalRiskHistoryService.saveIfAbsent()`를 호출한다. 오늘자 row가 이미 있으면 건너뛴다.
+  - **PATCH 토글**: `ConsentApiService.toggleConsent()`가 매 호출마다 `PersonalRiskHistoryService.saveOrUpdateToday()`를 호출한다. 오늘자 row가 있으면 최신 점수로 갱신(같은 날 여러 번 토글해도 오늘자 row는 1건 유지), 없으면 새로 만든다.
+  - 두 경로 모두 조회 범위를 항상 "오늘 날짜"로 좁혀서 upsert하므로, 과거 날짜 row는 어느 쪽 호출로도 덮어써지지 않는다(append-only). 과거 버그였던 "가장 최근 row를 날짜 무관하게 덮어쓰기"는 `docs/known_issues.md`의 "PATCH 토글이 위험도 히스토리를 append-only로 쌓지 못하던 버그" 항목 참고.
+- **알려진 제약**: 배치가 대상으로 삼는 사용자는 "이 기업에 `UserConsentCheck` row가 있는 사용자"로 한정된다 — 한 번도 동의 화면을 연 적 없는 사용자는 배치 대상에서 제외된다(히스토리를 시작할 기준 데이터가 없으므로).
 
 ---
 

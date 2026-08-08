@@ -26,9 +26,14 @@ public interface RiskScoreRepository extends JpaRepository<RiskScore, Long> {
     /** 배치 파이프라인이 저장하는 기업 대표(전체 항목 기준, user=null) 위험도. 개인 맞춤 용도로 쓰지 말 것. */
     Optional<RiskScore> findTopByCompany_CompanyIdAndIsRepresentativeTrueOrderByScoredAtDesc(Long companyId);
 
-    /** 특정 사용자의 개인 맞춤 대표 위험도 (company + user 로 구분되는 별도 row). */
-    Optional<RiskScore> findTopByCompany_CompanyIdAndUser_UserIdAndIsRepresentativeTrueOrderByScoredAtDesc(
-            Long companyId, Long userId);
+    /**
+     * 특정 사용자+기업의 "오늘자" 개인 맞춤 대표 위험도 row. PATCH 토글/배치 저장 양쪽이
+     * 이 조회로 오늘 이미 저장된 row가 있는지 확인해 upsert(있으면 갱신, 없으면 신규)한다 —
+     * append-only(날짜별 row 보존)를 위해 날짜로 반드시 범위를 좁혀야 한다(과거 임의의
+     * 최근 row를 가져와 덮어쓰면 히스토리가 소실된다).
+     */
+    Optional<RiskScore> findByUser_UserIdAndCompany_CompanyIdAndScoredAtAndIsRepresentativeTrue(
+            Long userId, Long companyId, LocalDate scoredAt);
 
     /** 해당 기업에 저장된 RiskScore가 하나라도 있는지 (company 삭제 가능 여부 판단용). */
     boolean existsByCompany_CompanyId(Long companyId);

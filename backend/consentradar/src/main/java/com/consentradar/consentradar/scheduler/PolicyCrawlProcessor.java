@@ -1,13 +1,22 @@
 package com.consentradar.consentradar.scheduler;
 
+import com.consentradar.consentradar.api.PersonalRiskCalculator;
 import com.consentradar.consentradar.crawler.PolicyBodyCrawler;
 import com.consentradar.consentradar.crawler.PolicyChangeDetectionService;
 import com.consentradar.consentradar.entity.Company;
 import com.consentradar.consentradar.entity.PolicySnapshot;
+import com.consentradar.consentradar.entity.User;
 import com.consentradar.consentradar.pipeline.RiskPipelineService;
 import com.consentradar.consentradar.repository.PolicySnapshotRepository;
+import com.consentradar.consentradar.repository.UserConsentCheckRepository;
+import com.consentradar.consentradar.riskhistory.PersonalRiskHistoryService;
+import com.dynamicconsent.model.RiskResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 /**
  * 기업 1건에 대한 크롤링 → 변경감지 → (조건부) 위험도 재산출을 하나의 트랜잭션으로 묶어 실행한다.
@@ -30,19 +39,30 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class PolicyCrawlProcessor {
 
+    private static final Logger log = LoggerFactory.getLogger(PolicyCrawlProcessor.class);
+
     private final PolicyBodyCrawler policyBodyCrawler;
     private final PolicyChangeDetectionService policyChangeDetectionService;
     private final PolicySnapshotRepository policySnapshotRepository;
     private final RiskPipelineService riskPipelineService;
+    private final UserConsentCheckRepository userConsentCheckRepository;
+    private final PersonalRiskCalculator personalRiskCalculator;
+    private final PersonalRiskHistoryService personalRiskHistoryService;
 
     public PolicyCrawlProcessor(PolicyBodyCrawler policyBodyCrawler,
                                  PolicyChangeDetectionService policyChangeDetectionService,
                                  PolicySnapshotRepository policySnapshotRepository,
-                                 RiskPipelineService riskPipelineService) {
+                                 RiskPipelineService riskPipelineService,
+                                 UserConsentCheckRepository userConsentCheckRepository,
+                                 PersonalRiskCalculator personalRiskCalculator,
+                                 PersonalRiskHistoryService personalRiskHistoryService) {
         this.policyBodyCrawler = policyBodyCrawler;
         this.policyChangeDetectionService = policyChangeDetectionService;
         this.policySnapshotRepository = policySnapshotRepository;
         this.riskPipelineService = riskPipelineService;
+        this.userConsentCheckRepository = userConsentCheckRepository;
+        this.personalRiskCalculator = personalRiskCalculator;
+        this.personalRiskHistoryService = personalRiskHistoryService;
     }
 
     /**
@@ -55,6 +75,12 @@ public class PolicyCrawlProcessor {
      * 판단했지만, 관리자 수동 트리거(`POST /admin/crawl/{id}`)가 배치와 동시에 여러 건
      * 겹치는 경우 HikariCP 커넥션 풀(기본 10개)이 소진될 이론적 가능성은 남아있다 — 기업 수가
      * 늘어나면 재검토 필요(docs/known_issues.md 참고).
+     *
+     * [개인 맞춤 위험도 히스토리 배치 연결 — 2026-08-08]
+     * 정책 변경 여부(shouldAnalyze)와 무관하게 매일 밤 이 기업에 {@code UserConsentCheck}
+     * 이력이 있는(=이 기업을 실제로 접한) 사용자 전원에 대해 개인 맞춤 위험도를 계산해
+     * {@link PersonalRiskHistoryService#saveIfAbsent}로 저장한다 — 정책이 그대로여도 매일의
+     * 스냅샷이 쌓여야 위험도 추이 그래프(2-4 API)가 끊기지 않는다.
      */
     @Transactional
     public CompanyCrawlResult processCompany(Company company) {
@@ -70,7 +96,35 @@ public class PolicyCrawlProcessor {
             riskPipelineService.analyzeAndSaveRisk(company, rawText);
         }
 
+        saveTodaysPersonalRiskHistoryForInterestedUsers(company);
+
         return new CompanyCrawlResult(company.getCompanyId(), company.getCompanyName(),
                 snapshot.isChanged(), shouldAnalyze);
+    }
+
+    /**
+     * 이 기업에 {@code UserConsentCheck} row가 하나라도 있는 사용자(=이 기업의 동의 화면을
+     * 실제로 열어본 적 있는 사용자) 전원에 대해 오늘자 개인 맞춤 위험도 히스토리를 저장한다.
+     * 사용자 한 명의 동의 항목 데이터가 잘못돼 있어도({@link PersonalRiskCalculator}가 던지는
+     * {@link IllegalArgumentException}) 그 사용자만 건너뛰고 나머지 사용자·이 기업의 크롤링/
+     * 위험도 재산출 자체는 영향받지 않아야 한다 —
+     * {@link com.consentradar.consentradar.api.ConsentApiService#safeCalculate}와 동일한
+     * 방어 패턴이다.
+     */
+    private void saveTodaysPersonalRiskHistoryForInterestedUsers(Company company) {
+        List<User> interestedUsers = userConsentCheckRepository
+                .findDistinctUsersByConsentItem_Company_CompanyId(company.getCompanyId());
+
+        for (User user : interestedUsers) {
+            try {
+                RiskResult result = personalRiskCalculator.calculate(user.getUserId(), company.getCompanyId());
+                if (result != null) {
+                    personalRiskHistoryService.saveIfAbsent(user, company, result);
+                }
+            } catch (IllegalArgumentException e) {
+                log.warn("userId={}, companyId={} 개인 맞춤 위험도 히스토리 저장 실패 — 잘못된 동의 항목 데이터로 추정, 건너뜀: {}",
+                        user.getUserId(), company.getCompanyId(), e.getMessage());
+            }
+        }
     }
 }

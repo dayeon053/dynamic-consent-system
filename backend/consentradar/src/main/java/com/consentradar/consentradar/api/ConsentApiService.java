@@ -6,6 +6,7 @@ import com.consentradar.consentradar.api.dto.ConsentPatchResponse;
 import com.consentradar.consentradar.consenthistory.UserConsentHistoryRecorder;
 import com.consentradar.consentradar.entity.*;
 import com.consentradar.consentradar.repository.*;
+import com.consentradar.consentradar.riskhistory.PersonalRiskHistoryService;
 import com.dynamicconsent.model.RiskResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -28,24 +28,24 @@ public class ConsentApiService {
     private final ConsentItemRepository consentItemRepository;
     private final UserConsentCheckRepository userConsentCheckRepository;
     private final CompanyRepository companyRepository;
-    private final RiskScoreRepository riskScoreRepository;
     private final PersonalRiskCalculator personalRiskCalculator;
     private final UserConsentHistoryRecorder userConsentHistoryRecorder;
+    private final PersonalRiskHistoryService personalRiskHistoryService;
 
     public ConsentApiService(UserRepository userRepository,
                              ConsentItemRepository consentItemRepository,
                              UserConsentCheckRepository userConsentCheckRepository,
                              CompanyRepository companyRepository,
-                             RiskScoreRepository riskScoreRepository,
                              PersonalRiskCalculator personalRiskCalculator,
-                             UserConsentHistoryRecorder userConsentHistoryRecorder) {
+                             UserConsentHistoryRecorder userConsentHistoryRecorder,
+                             PersonalRiskHistoryService personalRiskHistoryService) {
         this.userRepository              = userRepository;
         this.consentItemRepository       = consentItemRepository;
         this.userConsentCheckRepository  = userConsentCheckRepository;
         this.companyRepository           = companyRepository;
-        this.riskScoreRepository         = riskScoreRepository;
         this.personalRiskCalculator      = personalRiskCalculator;
         this.userConsentHistoryRecorder  = userConsentHistoryRecorder;
+        this.personalRiskHistoryService  = personalRiskHistoryService;
     }
 
     /**
@@ -85,6 +85,13 @@ public class ConsentApiService {
      * 그대로 저장한다 — 반전이 아니므로 같은 요청이 중복 전송돼도 항상 같은 최종 상태로
      * 수렴한다(멱등). {@code desiredChecked}가 null이면(본문 없는 레거시 호출) 하위호환을 위해
      * 기존 반전(toggle) 방식으로 처리한다.
+     *
+     * [해결됨 — 2026-08-08, append-only 히스토리 버그] 대표 RiskScore 갱신은
+     * {@link com.consentradar.consentradar.riskhistory.PersonalRiskHistoryService#saveOrUpdateToday}에
+     * 위임한다. 과거에는 이 메서드가 직접 "가장 최근 대표 row"를 날짜 무관하게 찾아 덮어쓰고
+     * 그 row의 scoredAt까지 오늘로 바꿔버렸다 — 즉 사용자가 여러 날에 걸쳐 토글해도 실제로는
+     * row가 1개만 남아 위험도 추이 히스토리(2-4 API)가 쌓이지 않는 버그였다(docs/known_issues.md
+     * 참고). 지금은 "오늘자 row"로 조회 범위를 좁혀 upsert하므로 과거 날짜 row는 보존된다.
      */
     @Transactional
     public ConsentPatchResponse toggleConsent(Long userId, Long consentItemId, Boolean desiredChecked) {
@@ -112,22 +119,9 @@ public class ConsentApiService {
         RiskResult newResult = safeCalculate(userId, company.getCompanyId());
 
         // 사용자별 개인 맞춤 대표 RiskScore 갱신 (company+user 로 구분되는 row. 배치용 user=null row와 별개)
+        // 오늘자 row는 upsert(있으면 갱신)하고 과거 날짜 row는 건드리지 않는다(append-only).
         if (newResult != null) {
-            RiskScore rep = riskScoreRepository
-                    .findTopByCompany_CompanyIdAndUser_UserIdAndIsRepresentativeTrueOrderByScoredAtDesc(
-                            company.getCompanyId(), userId)
-                    .orElseGet(() -> {
-                        RiskScore r = new RiskScore();
-                        r.setCompany(company);
-                        r.setUser(user);
-                        r.setRepresentative(true);
-                        return r;
-                    });
-            rep.setTotalScore(BigDecimal.valueOf(newResult.getScore()));
-            rep.setGrade(RiskScore.Grade.valueOf(newResult.getGrade().name()));
-            rep.setScoredAt(LocalDate.now());
-            // saveAndFlush로 유니크 제약/낙관적 락 위반을 이 메서드 안에서 즉시 드러낸다.
-            riskScoreRepository.saveAndFlush(rep);
+            personalRiskHistoryService.saveOrUpdateToday(user, company, newResult);
         }
 
         BigDecimal newScore = newResult != null ? BigDecimal.valueOf(newResult.getScore()) : null;
