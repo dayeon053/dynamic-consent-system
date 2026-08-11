@@ -117,14 +117,14 @@ class ApiOrganizationRepositoryTest {
     }
 
     @Test
-    fun `동의 토글 PATCH는 본문 없이 명세 경로로 전송된다`() = runTest {
+    fun `동의 변경 PATCH는 원하는 상태를 본문에 담아 전송된다`() = runTest {
         server.enqueue(
             MockResponse().setBody(
                 """{ "consentItemId": 12, "checked": false, "newRiskScore": 15.0, "newRiskGrade": "MEDIUM" }""",
             ),
         )
 
-        val response = repository.patchConsent(consentItemId = 12)
+        val response = repository.patchConsent(consentItemId = 12, checked = false)
 
         assertEquals(12L, response.consentItemId)
         assertEquals(false, response.checked)
@@ -134,6 +134,22 @@ class ApiOrganizationRepositoryTest {
         val request = server.takeRequest()
         assertEquals("PATCH", request.method)
         assertEquals("/users/1/consents/12", request.path)
-        assertEquals(0L, request.bodySize)
+        // 서버가 맹목적으로 반전하지 않도록 원하는 상태를 명시한다
+        assertEquals("""{"checked":false}""", request.body.readUtf8())
+    }
+
+    @Test
+    fun `같은 상태로 반복 호출해도 동일한 본문이 전송된다 (멱등)`() = runTest {
+        val body = """{ "consentItemId": 12, "checked": true, "newRiskScore": 43.5, "newRiskGrade": "VERY_HIGH" }"""
+        server.enqueue(MockResponse().setBody(body))
+        server.enqueue(MockResponse().setBody(body))
+
+        repository.patchConsent(consentItemId = 12, checked = true)
+        repository.patchConsent(consentItemId = 12, checked = true)
+
+        // 토글 방식이었다면 두 번째 요청이 상태를 되돌렸겠지만,
+        // 원하는 상태를 보내므로 몇 번을 보내도 결과가 같다.
+        assertEquals("""{"checked":true}""", server.takeRequest().body.readUtf8())
+        assertEquals("""{"checked":true}""", server.takeRequest().body.readUtf8())
     }
 }
