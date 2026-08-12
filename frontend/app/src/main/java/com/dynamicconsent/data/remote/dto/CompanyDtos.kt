@@ -51,6 +51,15 @@ data class ConsentItemResponse(
  * 요청 본문은 없다 — 서버가 현재 상태를 반전(토글)시키고 결과를 돌려주는 방식.
  * 화면 상태와 어긋나지 않도록 응답의 [checked]를 신뢰 기준으로 삼아 보정해야 한다.
  */
+@Serializable
+data class ConsentPatchResponse(
+    val consentItemId: Long,
+    val checked: Boolean,
+    /** 동의 항목이 하나도 없는 기업의 경우 서버가 null을 반환할 수 있다. */
+    val newRiskScore: Double? = null,
+    val newRiskGrade: RiskGrade? = null,
+)
+
 /**
  * GET /users/{userId}/consents/history 응답 항목 (backend UserConsentHistoryItemDto 대응).
  *
@@ -67,13 +76,4 @@ data class ConsentHistoryResponse(
     val isChecked: Boolean,
     /** 타임존 표기가 없는 KST 기준 시각 (예: "2026-07-29T10:15:00") */
     val changedAt: String,
-)
-
-@Serializable
-data class ConsentPatchResponse(
-    val consentItemId: Long,
-    val checked: Boolean,
-    /** 동의 항목이 하나도 없는 기업의 경우 서버가 null을 반환할 수 있다. */
-    val newRiskScore: Double? = null,
-    val newRiskGrade: RiskGrade? = null,
 )
