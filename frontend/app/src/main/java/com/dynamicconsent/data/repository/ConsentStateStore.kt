@@ -33,6 +33,18 @@ object ConsentStateStore {
         }
     }
 
+    /**
+     * 서버에서 받아온 이력으로 [orgId]의 변경 기록을 교체한다(최신순 전달 전제).
+     *
+     * 실 API 모드에서 화면 진입 시 호출해, 앱을 다시 켜도 이전 이력이 보이게 한다.
+     * 이후 토글은 기존대로 인메모리에 즉시 쌓이고, 다음 진입 때 서버 이력으로 다시 교체된다.
+     */
+    fun seedHistory(orgId: String, records: List<ConsentChangeRecord>) {
+        _changeHistory.update { current ->
+            current + (orgId to records.take(MAX_HISTORY_PER_ORG))
+        }
+    }
+
     fun setConsent(orgId: String, consentId: Int, enabled: Boolean, consentTitle: String) {
         _enabledConsents.update { current ->
             val ids = current[orgId].orEmpty()

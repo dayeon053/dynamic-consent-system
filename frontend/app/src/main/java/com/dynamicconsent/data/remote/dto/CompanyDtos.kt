@@ -51,6 +51,24 @@ data class ConsentItemResponse(
  * 요청 본문은 없다 — 서버가 현재 상태를 반전(토글)시키고 결과를 돌려주는 방식.
  * 화면 상태와 어긋나지 않도록 응답의 [checked]를 신뢰 기준으로 삼아 보정해야 한다.
  */
+/**
+ * GET /users/{userId}/consents/history 응답 항목 (backend UserConsentHistoryItemDto 대응).
+ *
+ * 주의할 점 두 가지:
+ *  - **전체 기업의 이력**이 변경 시각 오름차순으로 한 번에 내려온다 → 기업별로 필터해서 써야 한다.
+ *  - 토글 응답(ConsentPatchResponse)은 `checked`인데 이 응답만 `isChecked`다 (백엔드 직렬화 차이).
+ */
+@Serializable
+data class ConsentHistoryResponse(
+    val consentItemId: Long,
+    val itemName: String,
+    val companyId: Long,
+    val companyName: String,
+    val isChecked: Boolean,
+    /** 타임존 표기가 없는 KST 기준 시각 (예: "2026-07-29T10:15:00") */
+    val changedAt: String,
+)
+
 @Serializable
 data class ConsentPatchResponse(
     val consentItemId: Long,
