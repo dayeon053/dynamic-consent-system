@@ -48,7 +48,8 @@ class ApiOrganizationRepositoryTest {
 
     private val companiesJson = """
         [
-          { "companyId": 1, "companyName": "카카오톡", "packageName": "com.kakao.talk",
+          { "companyId": 1, "companyName": "카카오톡", "legalName": "(주)카카오", "category": "SNS",
+            "packageName": "com.kakao.talk",
             "privacyUrl": "https://www.kakao.com/policy/privacy", "ismsCertified": true,
             "riskScore": 43.5, "riskGrade": "VERY_HIGH" },
           { "companyId": 2, "companyName": "토스", "ismsCertified": false,
@@ -88,6 +89,11 @@ class ApiOrganizationRepositoryTest {
         assertEquals(listOf("카카오톡", "토스"), organizations.map { it.name })
         assertEquals(43.5, organizations[0].riskScore, 0.0)
         assertEquals(RiskGrade.VERY_HIGH, organizations[0].riskGrade)
+        // category는 서버 값, 로고는 프론트 매핑표에서 온다
+        assertEquals("SNS", organizations[0].category)
+        assertEquals("톡", organizations[0].logoText)
+        // category를 안 준 기업은 기타로 떨어진다
+        assertEquals("기타", organizations[1].category)
 
         val companiesReq = server.takeRequest()
         assertTrue(companiesReq.path!!.startsWith("/companies?"))
@@ -107,6 +113,8 @@ class ApiOrganizationRepositoryTest {
         assertEquals("맞춤형 광고 동의", optional.title)
         assertEquals(RiskVariables(ds = 3, es = 3, tf = 3, pc = 1.5, ai = 1.5), optional.variableImpact)
         assertEquals("ISMS-P", detail.companyInfo.privacyCertification)
+        assertEquals("(주)카카오", detail.companyInfo.legalName)
+        assertEquals("카카오톡", detail.companyInfo.serviceName)
         assertEquals("최대 40.5점 감소", detail.riskAnalysis.maxEffect.totalReduction)
 
         // 요청 순서: /companies → /companies/1/consent-items → /companies/2/consent-items

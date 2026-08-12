@@ -24,18 +24,51 @@ import com.dynamicconsent.domain.RiskRecalculator
 object CompanyMapper {
 
     private const val DEFAULT_LOGO_COLOR = 0xFF00752FL
+    private const val DEFAULT_CATEGORY = "기타"
+
+    /**
+     * 기업 로고(약칭·배경색). 서버 스키마에 없는 값이라 프론트에서 관리한다.
+     * 팀 합의: 이 3~5개 기업 데모 범위에서는 백엔드 컬럼을 추가하지 않고 여기에 둔다.
+     *
+     * packageName을 1순위 키로 쓴다 — companyId는 DB 입력 순서에 따라 환경마다 달라지고,
+     * 기업명은 "카카오"/"카카오톡"처럼 표기가 흔들리기 때문. packageName이 없는 기업은
+     * 기업명으로 한 번 더 찾고, 그래도 없으면 기존처럼 첫 글자 + 기본색으로 떨어진다.
+     */
+    private data class Branding(
+        val packageName: String,
+        val companyName: String,
+        val logoText: String,
+        val logoColor: Long,
+    )
+
+    private val BRANDINGS = listOf(
+        Branding("com.kakao.talk", "카카오", "톡", 0xFFFEE500L),
+        Branding("com.nhn.android.search", "네이버", "N", 0xFF03C75AL),
+        Branding("com.sampleapp", "배달의민족", "배민", 0xFF2AC1BCL),
+        Branding("viva.republica.toss", "토스", "토스", 0xFF0064FFL),
+        Branding("com.towneers.www", "당근마켓", "당근", 0xFFFF6F0FL),
+    )
+
+    private val brandingByPackage = BRANDINGS.associateBy { it.packageName }
+    private val brandingByName = BRANDINGS.associateBy { it.companyName }
+
+    private fun brandingOf(response: CompanyResponse): Branding? =
+        response.packageName?.let { brandingByPackage[it] } ?: brandingByName[response.companyName]
 
     /** GET /companies 항목 → 리스트 카드용 요약. 위험도는 서버 산출값을 그대로 쓴다. */
-    fun toOrganization(response: CompanyResponse): Organization = Organization(
-        id = response.companyId.toString(),
-        packageName = response.packageName,
-        name = response.companyName,
-        category = "기타",
-        riskScore = response.riskScore ?: RiskCalculator.MIN_SCORE,
-        riskGrade = response.riskGrade ?: RiskGrade.VERY_LOW,
-        logoText = response.companyName.take(1),
-        logoColor = DEFAULT_LOGO_COLOR,
-    )
+    fun toOrganization(response: CompanyResponse): Organization {
+        val branding = brandingOf(response)
+        return Organization(
+            id = response.companyId.toString(),
+            packageName = response.packageName,
+            name = response.companyName,
+            category = response.category?.takeIf { it.isNotBlank() } ?: DEFAULT_CATEGORY,
+            riskScore = response.riskScore ?: RiskCalculator.MIN_SCORE,
+            riskGrade = response.riskGrade ?: RiskGrade.VERY_LOW,
+            logoText = branding?.logoText ?: response.companyName.take(1),
+            logoColor = branding?.logoColor ?: DEFAULT_LOGO_COLOR,
+        )
+    }
 
     /**
      * 기업 요약 + 동의 항목 → 기업상세.
@@ -86,7 +119,8 @@ object CompanyMapper {
             riskAnalysis = placeholderAnalysis(),
             companyInfo = CompanyInfo(
                 serviceName = company.companyName,
-                legalName = company.companyName,
+                // 구버전 서버(V6 이전)는 legalName을 안 주므로 서비스명으로 떨어진다.
+                legalName = company.legalName?.takeIf { it.isNotBlank() } ?: company.companyName,
                 privacyCertification = if (company.ismsCertified) "ISMS-P" else "-",
                 privacyPolicyUrl = company.privacyUrl.orEmpty(),
             ),
