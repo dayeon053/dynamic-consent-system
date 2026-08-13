@@ -28,6 +28,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
@@ -76,13 +78,23 @@ fun OrgDetailScreen(
     viewModel: OrgDetailViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(orgId, initialTab) {
         viewModel.loadOrganization(orgId, initialTab)
     }
 
+    // 토글 저장 실패·보정 안내는 화면을 막지 않고 스낵바로만 알린다.
+    uiState.toggleMessage?.let { message ->
+        LaunchedEffect(message) {
+            snackbarHostState.showSnackbar(message)
+            viewModel.consumeToggleMessage()
+        }
+    }
+
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -168,19 +180,32 @@ private fun ConsentTabContent(
     detail: OrganizationDetail,
     onConsentToggle: (consentId: Int, enabled: Boolean) -> Unit,
 ) {
+    val optionalConsents = detail.consentDetail.optionalConsents
+    val requiredConsents = detail.consentDetail.requiredConsents
+
+    // 동의 항목이 아직 수집되지 않은 기업은 두 목록이 모두 비어 제목만 남는다.
+    if (optionalConsents.isEmpty() && requiredConsents.isEmpty()) {
+        PlaceholderContent("등록된 동의 항목이 없습니다.")
+        return
+    }
+
     Column {
         Text("선택 동의", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
         Spacer(modifier = Modifier.height(16.dp))
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(AppBackground, RoundedCornerShape(12.dp)),
-        ) {
-            detail.consentDetail.optionalConsents.forEach { item ->
-                OptionalConsentRow(
-                    item = item,
-                    onToggle = { enabled -> onConsentToggle(item.id, enabled) },
-                )
+        if (optionalConsents.isEmpty()) {
+            PlaceholderContent("철회할 수 있는 선택 동의가 없습니다.", minHeight = 80.dp)
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(AppBackground, RoundedCornerShape(12.dp)),
+            ) {
+                optionalConsents.forEach { item ->
+                    OptionalConsentRow(
+                        item = item,
+                        onToggle = { enabled -> onConsentToggle(item.id, enabled) },
+                    )
+                }
             }
         }
 
@@ -188,13 +213,17 @@ private fun ConsentTabContent(
 
         Text("필수 동의", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
         Spacer(modifier = Modifier.height(16.dp))
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(AppBackground, RoundedCornerShape(12.dp)),
-        ) {
-            detail.consentDetail.requiredConsents.forEach { item ->
-                RequiredConsentRow(item)
+        if (requiredConsents.isEmpty()) {
+            PlaceholderContent("등록된 필수 동의가 없습니다.", minHeight = 80.dp)
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(AppBackground, RoundedCornerShape(12.dp)),
+            ) {
+                requiredConsents.forEach { item ->
+                    RequiredConsentRow(item)
+                }
             }
         }
     }

@@ -43,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dynamicconsent.data.model.Organization
 import com.dynamicconsent.data.model.OrganizationDetail
+import com.dynamicconsent.ui.common.EmptyState
 import com.dynamicconsent.ui.common.ErrorRetry
 import com.dynamicconsent.ui.common.OrgLogo
 import com.dynamicconsent.ui.common.RiskAnalysisSection
@@ -98,6 +99,18 @@ fun RiskListScreen(
             ErrorRetry(
                 message = message,
                 onRetry = viewModel::retry,
+                modifier = Modifier.padding(innerPadding),
+            )
+            return@Scaffold
+        }
+
+        // 불러오기는 성공했는데 기업이 0건인 경우. 오류 화면을 띄우면 사용자가
+        // 앱이 고장난 것으로 오해하므로 빈 상태로 따로 안내한다.
+        if (uiState.organizations.isEmpty()) {
+            EmptyState(
+                message = "표시할 기업이 없습니다.",
+                description = "등록된 기업이 아직 없거나 분석이 끝나지 않았습니다.",
+                onAction = viewModel::retry,
                 modifier = Modifier.padding(innerPadding),
             )
             return@Scaffold

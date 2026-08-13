@@ -9,6 +9,7 @@ import com.dynamicconsent.data.repository.OrganizationRepository
 import com.dynamicconsent.data.repository.RepositoryProvider
 import com.dynamicconsent.domain.RiskRecalculator
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +28,12 @@ class RiskListViewModel @JvmOverloads constructor(
     /** 동의 상태를 반영해 재산출된 최신 상세 데이터 (orgId 기준) */
     private var recalculatedDetails: Map<String, OrganizationDetail> = emptyMap()
 
+    /**
+     * 진행 중인 로드/구독. 새로고침을 연타해도 collect가 겹쳐 쌓이지 않도록
+     * 새로 시작하기 전에 이전 것을 취소한다.
+     */
+    private var observeJob: Job? = null
+
     init {
         observeOrganizations()
     }
@@ -34,7 +41,8 @@ class RiskListViewModel @JvmOverloads constructor(
     fun retry() = observeOrganizations()
 
     private fun observeOrganizations() {
-        viewModelScope.launch {
+        observeJob?.cancel()
+        observeJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             val baseDetails = try {
                 val organizations = repository.getOrganizations()
