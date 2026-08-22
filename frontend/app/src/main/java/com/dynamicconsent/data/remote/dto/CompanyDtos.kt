@@ -47,9 +47,20 @@ data class ConsentItemResponse(
 }
 
 /**
+ * PATCH /users/{userId}/consents/{consentItemId} 요청 본문 (backend ConsentPatchRequest 대응).
+ *
+ * [checked]에 **원하는 상태**를 명시하면 서버가 그 값을 그대로 저장한다(멱등).
+ * 같은 요청을 여러 번 보내도 결과가 같으므로, 요청이 유실·재시도돼도
+ * 화면과 서버 상태가 어긋나지 않는다.
+ */
+@Serializable
+data class ConsentPatchRequest(
+    val checked: Boolean,
+)
+
+/**
  * PATCH /users/{userId}/consents/{consentItemId} 응답 (backend ConsentPatchResponse 대응).
- * 요청 본문은 없다 — 서버가 현재 상태를 반전(토글)시키고 결과를 돌려주는 방식.
- * 화면 상태와 어긋나지 않도록 응답의 [checked]를 신뢰 기준으로 삼아 보정해야 한다.
+ * [checked]는 서버에 최종 저장된 상태다.
  */
 @Serializable
 data class ConsentPatchResponse(
