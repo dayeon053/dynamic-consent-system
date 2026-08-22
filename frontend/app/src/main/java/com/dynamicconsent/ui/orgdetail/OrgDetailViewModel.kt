@@ -40,8 +40,8 @@ class OrgDetailViewModel @JvmOverloads constructor(
      */
     private val consentSync: ConsentSyncManager? =
         apiRepository?.let { apiRepo ->
-            ConsentSyncManager(scope = viewModelScope) { consentItemId, _ ->
-                apiRepo.patchConsent(consentItemId).also { apiRepo.invalidateCache() }
+            ConsentSyncManager(scope = viewModelScope) { consentItemId, enabled ->
+                apiRepo.patchConsent(consentItemId, enabled).also { apiRepo.invalidateCache() }
             }
         }
 

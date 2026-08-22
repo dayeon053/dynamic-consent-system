@@ -3,7 +3,9 @@ package com.dynamicconsent.data.remote
 import com.dynamicconsent.data.remote.dto.CompanyResponse
 import com.dynamicconsent.data.remote.dto.ConsentHistoryResponse
 import com.dynamicconsent.data.remote.dto.ConsentItemResponse
+import com.dynamicconsent.data.remote.dto.ConsentPatchRequest
 import com.dynamicconsent.data.remote.dto.ConsentPatchResponse
+import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.Path
@@ -37,12 +39,15 @@ interface ConsentRadarApi {
     ): List<ConsentHistoryResponse>
 
     /**
-     * 동의 체크 상태 토글. 요청 본문 없음 — 서버가 현재 상태를 반전시킨다.
-     * 원하는 상태를 명시하는 방식(멱등)이 안전해 백엔드에 개선 제안 중.
+     * 동의 체크 상태 변경. 본문의 `checked`에 **원하는 상태**를 명시해 멱등하게 저장한다.
+     *
+     * 서버는 본문을 생략하면 기존 반전(toggle) 방식으로도 동작하지만(하위호환),
+     * 앱은 요청 유실·재시도 시 화면과 서버가 어긋나지 않도록 항상 본문을 보낸다.
      */
     @PATCH("users/{userId}/consents/{consentItemId}")
     suspend fun patchConsent(
         @Path("userId") userId: Long,
         @Path("consentItemId") consentItemId: Long,
+        @Body body: ConsentPatchRequest,
     ): ConsentPatchResponse
 }
