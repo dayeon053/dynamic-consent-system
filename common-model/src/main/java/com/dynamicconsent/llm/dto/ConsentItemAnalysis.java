@@ -14,7 +14,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  *
  * LLM 출력 JSON에서 consentItems 배열의 원소 1개에 대응한다.
  *
- * ds/es/tf/pc/ai 필드는 각 Enum의 name() 문자열이어야 한다:
+ * itemType/ds/es/tf/pc/ai 필드는 각 Enum의 name() 문자열이어야 한다:
+ *   itemType → "REQUIRED" | "OPTIONAL"
  *   ds  → "LOW" | "MODERATE" | "HIGH"
  *   es  → "LOW" | "MEDIUM"   | "HIGH"
  *   tf  → "SHORT" | "MEDIUM" | "LONG"
@@ -90,6 +91,7 @@ public class ConsentItemAnalysis {
     public String getAiReason()  { return aiReason; }
 
     /** 파서에서 대문자 정규화 후 세팅 */
+    public void setItemType(String itemType) { this.itemType = itemType; }
     public void setDs(String ds) { this.ds = ds; }
     public void setEs(String es) { this.es = es; }
     public void setTf(String tf) { this.tf = tf; }

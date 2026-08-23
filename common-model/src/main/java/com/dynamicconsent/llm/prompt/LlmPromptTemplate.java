@@ -52,7 +52,7 @@ public class LlmPromptTemplate {
 
                 + "=== 출력 규칙 ===\n"
                 + "- 마크다운 코드블록(```) 없이 순수 JSON만 출력\n"
-                + "- 모든 Enum 값은 대문자로 출력\n"
+                + "- 모든 Enum 값(itemType 포함)은 대문자로, 지정된 값 중 하나만 정확히 출력\n"
                 + "- 동의 항목마다 각 변수 판단 근거를 한 문장으로 작성\n\n"
 
                 + "=== 출력 형식 ===\n"
@@ -61,7 +61,7 @@ public class LlmPromptTemplate {
                 + "  \"consentItems\": [\n"
                 + "    {\n"
                 + "      \"itemName\": \"동의 항목명\",\n"
-                + "      \"itemType\": \"REQUIRED 또는 OPTIONAL\",\n"
+                + "      \"itemType\": \"REQUIRED | OPTIONAL\",\n"
                 + "      \"ds\": \"LOW | MODERATE | HIGH\",\n"
                 + "      \"es\": \"LOW | MEDIUM | HIGH\",\n"
                 + "      \"tf\": \"SHORT | MEDIUM | LONG\",\n"
