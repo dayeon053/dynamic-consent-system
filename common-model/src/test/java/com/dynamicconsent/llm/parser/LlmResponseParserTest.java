@@ -24,6 +24,7 @@ class LlmResponseParserTest {
               "consentItems": [
                 {
                   "itemName": "위치정보 수집",
+                  "itemType": "REQUIRED",
                   "ds": "HIGH",
                   "es": "HIGH",
                   "tf": "LONG",
@@ -42,6 +43,7 @@ class LlmResponseParserTest {
         assertEquals("카카오", result.getCompanyName());
         assertEquals(1, result.getConsentItems().size());
         assertEquals("위치정보 수집", result.getConsentItems().get(0).getItemName());
+        assertEquals("REQUIRED", result.getConsentItems().get(0).getItemType());
         assertEquals("HIGH", result.getConsentItems().get(0).getDs());
     }
 
@@ -68,6 +70,7 @@ class LlmResponseParserTest {
                   "consentItems": [
                     {
                       "itemName": "이메일 수집",
+                      "itemType": "optional",
                       "ds": "moderate",
                       "es": "medium",
                       "tf": "short",
@@ -78,6 +81,7 @@ class LlmResponseParserTest {
                 }
                 """;
         LlmRiskAnalysisResponse result = LlmResponseParser.parse(lowerCaseJson);
+        assertEquals("OPTIONAL", result.getConsentItems().get(0).getItemType());
         assertEquals("MODERATE", result.getConsentItems().get(0).getDs());
         assertEquals("LOW_RISK", result.getConsentItems().get(0).getAi());
     }
@@ -97,7 +101,7 @@ class LlmResponseParserTest {
         String json = """
                 {
                   "consentItems": [
-                    { "itemName": "이름", "ds": "HIGH", "es": "HIGH", "tf": "LONG",
+                    { "itemName": "이름", "itemType": "REQUIRED", "ds": "HIGH", "es": "HIGH", "tf": "LONG",
                       "pc": "NON_COMPLIANT", "ai": "HIGH_RISK" }
                   ]
                 }
@@ -126,7 +130,7 @@ class LlmResponseParserTest {
                 {
                   "companyName": "카카오",
                   "consentItems": [
-                    { "ds": "HIGH", "es": "HIGH", "tf": "LONG",
+                    { "itemType": "REQUIRED", "ds": "HIGH", "es": "HIGH", "tf": "LONG",
                       "pc": "NON_COMPLIANT", "ai": "HIGH_RISK" }
                   ]
                 }
@@ -137,13 +141,47 @@ class LlmResponseParserTest {
     }
 
     @Test
+    void throwsWhenItemTypeMissing() {
+        String json = """
+                {
+                  "companyName": "카카오",
+                  "consentItems": [
+                    { "itemName": "광고수신", "ds": "HIGH", "es": "HIGH", "tf": "LONG",
+                      "pc": "NON_COMPLIANT", "ai": "HIGH_RISK" }
+                  ]
+                }
+                """;
+        LlmParseException ex = assertThrows(LlmParseException.class,
+                () -> LlmResponseParser.parse(json));
+        assertTrue(ex.getMessage().contains("itemType"));
+    }
+
+    @Test
+    void throwsWhenItemTypeInvalid() {
+        // 모델이 "필수"처럼 지정된 값이 아닌 문자열을 반환하는 경우
+        // — 여기서 막지 않으면 ConsentItem.ItemType.valueOf()가 파서 바깥에서 그대로 터진다.
+        String json = """
+                {
+                  "companyName": "카카오",
+                  "consentItems": [
+                    { "itemName": "광고수신", "itemType": "필수", "ds": "HIGH", "es": "HIGH", "tf": "LONG",
+                      "pc": "NON_COMPLIANT", "ai": "HIGH_RISK" }
+                  ]
+                }
+                """;
+        LlmParseException ex = assertThrows(LlmParseException.class,
+                () -> LlmResponseParser.parse(json));
+        assertTrue(ex.getMessage().contains("itemType"));
+    }
+
+    @Test
     void throwsWhenEnumFieldMissing() {
         // ds 필드 자체가 없는 경우
         String json = """
                 {
                   "companyName": "카카오",
                   "consentItems": [
-                    { "itemName": "광고수신", "es": "HIGH", "tf": "LONG",
+                    { "itemName": "광고수신", "itemType": "REQUIRED", "es": "HIGH", "tf": "LONG",
                       "pc": "NON_COMPLIANT", "ai": "HIGH_RISK" }
                   ]
                 }
@@ -161,7 +199,7 @@ class LlmResponseParserTest {
                 {
                   "companyName": "카카오",
                   "consentItems": [
-                    { "itemName": "광고수신", "ds": "INVALID", "es": "HIGH", "tf": "LONG",
+                    { "itemName": "광고수신", "itemType": "REQUIRED", "ds": "INVALID", "es": "HIGH", "tf": "LONG",
                       "pc": "NON_COMPLIANT", "ai": "HIGH_RISK" }
                   ]
                 }
