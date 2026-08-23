@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -28,6 +29,7 @@ public class ConsentApiService {
     private final ConsentItemRepository consentItemRepository;
     private final UserConsentCheckRepository userConsentCheckRepository;
     private final CompanyRepository companyRepository;
+    private final PolicySnapshotRepository policySnapshotRepository;
     private final PersonalRiskCalculator personalRiskCalculator;
     private final UserConsentHistoryRecorder userConsentHistoryRecorder;
     private final PersonalRiskHistoryService personalRiskHistoryService;
@@ -36,6 +38,7 @@ public class ConsentApiService {
                              ConsentItemRepository consentItemRepository,
                              UserConsentCheckRepository userConsentCheckRepository,
                              CompanyRepository companyRepository,
+                             PolicySnapshotRepository policySnapshotRepository,
                              PersonalRiskCalculator personalRiskCalculator,
                              UserConsentHistoryRecorder userConsentHistoryRecorder,
                              PersonalRiskHistoryService personalRiskHistoryService) {
@@ -43,6 +46,7 @@ public class ConsentApiService {
         this.consentItemRepository       = consentItemRepository;
         this.userConsentCheckRepository  = userConsentCheckRepository;
         this.companyRepository           = companyRepository;
+        this.policySnapshotRepository    = policySnapshotRepository;
         this.personalRiskCalculator      = personalRiskCalculator;
         this.userConsentHistoryRecorder  = userConsentHistoryRecorder;
         this.personalRiskHistoryService  = personalRiskHistoryService;
@@ -144,11 +148,21 @@ public class ConsentApiService {
         List<Company> companies = companyRepository.findAll();
 
         return companies.stream()
-                .map(company -> new CompanyRiskResponse(company, safeCalculate(userId, company.getCompanyId())))
+                .map(company -> new CompanyRiskResponse(
+                        company,
+                        safeCalculate(userId, company.getCompanyId()),
+                        latestCrawledAt(company.getCompanyId())))
                 .sorted(Comparator.comparing(
                         r -> r.getRiskScore() != null ? r.getRiskScore() : BigDecimal.ZERO,
                         Comparator.reverseOrder()))
                 .collect(Collectors.toList());
+    }
+
+    /** 해당 기업의 가장 최근 PolicySnapshot.crawledAt. 스냅샷이 아직 없으면(수집 전) null. */
+    private LocalDateTime latestCrawledAt(Long companyId) {
+        return policySnapshotRepository.findFirstByCompany_CompanyIdOrderByCrawledAtDesc(companyId)
+                .map(PolicySnapshot::getCrawledAt)
+                .orElse(null);
     }
 
     /**
