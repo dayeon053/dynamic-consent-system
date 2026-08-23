@@ -10,8 +10,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+
+/** 밝은 배경 위 글자색. 카카오 노랑 같은 밝은 브랜드색에서 흰 글씨가 안 보이는 것을 막는다. */
+private val ON_LIGHT_LOGO = Color(0xFF191919)
+
+/** 이 값을 넘는 밝기의 배경에는 어두운 글자를 쓴다. */
+private const val LIGHT_BACKGROUND_LUMINANCE = 0.5f
 
 /** 실제 로고 이미지 대신 이니셜 텍스트를 보여주는 자리표시자 로고. */
 @Composable
@@ -29,7 +36,11 @@ fun OrgLogo(
     ) {
         Text(
             text = text,
-            color = Color.White,
+            color = if (backgroundColor.luminance() > LIGHT_BACKGROUND_LUMINANCE) {
+                ON_LIGHT_LOGO
+            } else {
+                Color.White
+            },
             style = MaterialTheme.typography.labelLarge,
         )
     }

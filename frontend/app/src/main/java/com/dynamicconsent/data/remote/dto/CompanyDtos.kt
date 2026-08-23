@@ -15,6 +15,10 @@ import kotlinx.serialization.Serializable
 data class CompanyResponse(
     val companyId: Long,
     val companyName: String,
+    /** 법인 정식 명칭 (예: "(주)카카오"). 마이그레이션 V6에서 추가된 컬럼이라 구버전 서버는 안 줄 수 있다. */
+    val legalName: String? = null,
+    /** 기업 카테고리 (예: "SNS", "금융"). V6에서 추가. 로고(logoText/logoColor)는 서버에 없어 프론트가 채운다. */
+    val category: String? = null,
     val packageName: String? = null,
     val privacyUrl: String? = null,
     val ismsCertified: Boolean = false,
