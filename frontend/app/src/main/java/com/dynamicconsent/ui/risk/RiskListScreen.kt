@@ -52,6 +52,9 @@ import com.dynamicconsent.ui.theme.TextPrimary
 import com.dynamicconsent.ui.theme.accentColor
 import com.dynamicconsent.ui.theme.backgroundColor
 
+private val OfflineBannerBackground = Color(0xFFFFF4E5)
+private val OfflineBannerText = Color(0xFF8A5300)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RiskListScreen(
@@ -109,6 +112,10 @@ fun RiskListScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState()),
         ) {
+            if (uiState.isFallback) {
+                OfflineDataBanner()
+            }
+
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -134,6 +141,37 @@ fun RiskListScreen(
                 )
             }
         }
+    }
+}
+
+/**
+ * 서버 대신 mock으로 채워졌음을 알리는 띠.
+ *
+ * mock은 사용자의 동의 철회가 반영되지 않은 **초기 상태값**이라, 표시 없이 보여주면
+ * 사용자가 내린 점수가 원래대로 돌아간 것처럼 보인다.
+ */
+@Composable
+private fun OfflineDataBanner() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(top = 12.dp)
+            .background(OfflineBannerBackground, RoundedCornerShape(8.dp))
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+    ) {
+        Text(
+            text = "오프라인 데이터",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = OfflineBannerText,
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = "서버에 연결하지 못해 저장된 예시 데이터를 보여주고 있습니다. 내가 바꾼 동의 상태는 반영되지 않았습니다.",
+            style = MaterialTheme.typography.bodySmall,
+            color = OfflineBannerText,
+        )
     }
 }
 

@@ -15,8 +15,23 @@ object RepositoryProvider {
         ApiOrganizationRepository(ApiClient.create(AppConfig.BASE_URL))
     }
 
+    /**
+     * 실 API 모드에서 쓰는 폴백 래퍼. **앱 전역에서 한 인스턴스를 공유해야 한다** —
+     * 화면(메인 스레드)과 오버레이(서비스 스레드)가 같은 폴백 여부를 봐야 하기 때문.
+     * AssetManager가 필요해 by lazy 대신 첫 호출 때 만든다.
+     */
+    private var fallbackRepository: FallbackOrganizationRepository? = null
+
+    @Synchronized
     fun organizationRepository(assets: AssetManager): OrganizationRepository =
-        if (AppConfig.USE_REMOTE_API) apiRepository else DummyOrganizationRepository(assets)
+        if (AppConfig.USE_REMOTE_API) {
+            fallbackRepository ?: FallbackOrganizationRepository(
+                remote = apiRepository,
+                fallback = DummyOrganizationRepository(assets),
+            ).also { fallbackRepository = it }
+        } else {
+            DummyOrganizationRepository(assets)
+        }
 
     /** 실 API 모드일 때 서버 동기화(PATCH)에 쓸 저장소. mock 모드면 null. */
     fun apiRepositoryOrNull(): ApiOrganizationRepository? =

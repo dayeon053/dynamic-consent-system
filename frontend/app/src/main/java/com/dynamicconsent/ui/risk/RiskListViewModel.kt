@@ -50,6 +50,9 @@ class RiskListViewModel @JvmOverloads constructor(
                 return@launch
             }
 
+            // 폴백 여부는 목록 조회 직후 값이 확정된다 (아래 collect는 계속 도므로 여기서 붙잡아 둔다).
+            val isFallback = repository.isFallback
+
             baseDetails.values.forEach { detail ->
                 ConsentStateStore.initialize(
                     orgId = detail.organization.id,
@@ -78,6 +81,7 @@ class RiskListViewModel @JvmOverloads constructor(
                         organizations = sortedOrganizations,
                         selectedOrganizationId = selectedId,
                         selectedDetail = selectedId?.let { recalculatedDetails[it] },
+                        isFallback = isFallback,
                     )
                 }
             }
