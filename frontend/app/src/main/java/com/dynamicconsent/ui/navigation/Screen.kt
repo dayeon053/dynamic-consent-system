@@ -11,6 +11,9 @@ sealed class Screen(val route: String) {
     /** 실행 감시(2·3단계) 테스트 화면 */
     data object Monitor : Screen("monitor")
 
+    /** 약관 변경 알림 목록 (공지사항) */
+    data object Notice : Screen("notice")
+
     data object OrgDetail : Screen("org_detail/{orgId}?tab={tab}") {
         const val ARG_ORG_ID = "orgId"
         const val ARG_TAB = "tab"

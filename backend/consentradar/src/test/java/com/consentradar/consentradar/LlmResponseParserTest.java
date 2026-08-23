@@ -15,6 +15,7 @@ class LlmResponseParserTest {
               "consentItems": [
                 {
                   "itemName": "위치정보 수집",
+                  "itemType": "REQUIRED",
                   "ds": "HIGH",
                   "es": "HIGH",
                   "tf": "LONG",
@@ -48,6 +49,7 @@ class LlmResponseParserTest {
                   "consentItems": [
                     {
                       "itemName": "이메일 수집",
+                      "itemType": "optional",
                       "ds": "moderate",
                       "es": "medium",
                       "tf": "short",
@@ -58,6 +60,7 @@ class LlmResponseParserTest {
                 }
                 """;
         LlmRiskAnalysisResponse result = LlmResponseParser.parse(lowerCaseJson);
+        assertEquals("OPTIONAL", result.getConsentItems().get(0).getItemType());
         assertEquals("MODERATE", result.getConsentItems().get(0).getDs());
     }
 
@@ -68,6 +71,7 @@ class LlmResponseParserTest {
                   "consentItems": [
                     {
                       "itemName": "이름",
+                      "itemType": "REQUIRED",
                       "ds": "HIGH", "es": "HIGH", "tf": "LONG",
                       "pc": "NON_COMPLIANT", "ai": "HIGH_RISK"
                     }
@@ -91,6 +95,44 @@ class LlmResponseParserTest {
     }
 
     @Test
+    void itemType_누락시_예외_발생() {
+        String json = """
+                {
+                  "companyName": "카카오",
+                  "consentItems": [
+                    {
+                      "itemName": "광고수신",
+                      "ds": "HIGH", "es": "HIGH", "tf": "LONG",
+                      "pc": "NON_COMPLIANT", "ai": "HIGH_RISK"
+                    }
+                  ]
+                }
+                """;
+        LlmParseException ex = assertThrows(LlmParseException.class, () -> LlmResponseParser.parse(json));
+        assertTrue(ex.getMessage().contains("itemType"));
+    }
+
+    @Test
+    void itemType_유효하지_않은_값_예외_발생() {
+        // ConsentItem.ItemType.valueOf()가 파서 밖에서 터지기 전에 여기서 먼저 막혀야 한다.
+        String json = """
+                {
+                  "companyName": "카카오",
+                  "consentItems": [
+                    {
+                      "itemName": "광고수신",
+                      "itemType": "필수",
+                      "ds": "HIGH", "es": "HIGH", "tf": "LONG",
+                      "pc": "NON_COMPLIANT", "ai": "HIGH_RISK"
+                    }
+                  ]
+                }
+                """;
+        LlmParseException ex = assertThrows(LlmParseException.class, () -> LlmResponseParser.parse(json));
+        assertTrue(ex.getMessage().contains("itemType"));
+    }
+
+    @Test
     void 유효하지_않은_enum값_예외_발생() {
         String json = """
                 {
@@ -98,6 +140,7 @@ class LlmResponseParserTest {
                   "consentItems": [
                     {
                       "itemName": "광고수신",
+                      "itemType": "REQUIRED",
                       "ds": "INVALID",
                       "es": "HIGH", "tf": "LONG",
                       "pc": "NON_COMPLIANT", "ai": "HIGH_RISK"

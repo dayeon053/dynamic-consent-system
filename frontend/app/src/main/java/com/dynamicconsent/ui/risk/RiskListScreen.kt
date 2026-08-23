@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dynamicconsent.data.model.Organization
 import com.dynamicconsent.data.model.OrganizationDetail
+import com.dynamicconsent.ui.common.EmptyState
 import com.dynamicconsent.ui.common.ErrorRetry
 import com.dynamicconsent.ui.common.OrgLogo
 import com.dynamicconsent.ui.common.RiskAnalysisSection
@@ -58,6 +60,7 @@ fun RiskListScreen(
     onBackClick: () -> Unit,
     onOrgDetailClick: (orgId: String) -> Unit,
     onMonitorClick: () -> Unit = {},
+    onNoticeClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: RiskListViewModel = viewModel(),
 ) {
@@ -77,6 +80,14 @@ fun RiskListScreen(
                     IconButton(onClick = {}) {
                         Icon(Icons.Default.Info, contentDescription = "정보", tint = BrandGreen)
                     }
+                    IconButton(onClick = onNoticeClick) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.List,
+                            contentDescription = "공지사항",
+                            tint = BrandGreen,
+                        )
+                    }
+                    // 벨 아이콘은 재은님의 감시 테스트 화면으로 간다 (기존 동작 유지)
                     IconButton(onClick = onMonitorClick) {
                         Icon(Icons.Default.Notifications, contentDescription = "알림", tint = BrandGreen)
                     }
@@ -98,6 +109,18 @@ fun RiskListScreen(
             ErrorRetry(
                 message = message,
                 onRetry = viewModel::retry,
+                modifier = Modifier.padding(innerPadding),
+            )
+            return@Scaffold
+        }
+
+        // 불러오기는 성공했는데 기업이 0건인 경우. 오류 화면을 띄우면 사용자가
+        // 앱이 고장난 것으로 오해하므로 빈 상태로 따로 안내한다.
+        if (uiState.organizations.isEmpty()) {
+            EmptyState(
+                message = "표시할 기업이 없습니다.",
+                description = "등록된 기업이 아직 없거나 분석이 끝나지 않았습니다.",
+                onAction = viewModel::retry,
                 modifier = Modifier.padding(innerPadding),
             )
             return@Scaffold

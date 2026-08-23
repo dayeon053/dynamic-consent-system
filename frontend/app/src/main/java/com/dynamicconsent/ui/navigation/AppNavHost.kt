@@ -10,6 +10,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.dynamicconsent.ui.monitor.MonitorScreen
+import com.dynamicconsent.ui.notice.NoticeScreen
 import com.dynamicconsent.ui.orgdetail.OrgDetailScreen
 import com.dynamicconsent.ui.orgdetail.OrgDetailTab
 import com.dynamicconsent.ui.risk.RiskListScreen
@@ -31,11 +32,16 @@ fun AppNavHost(
                     navController.navigate(Screen.OrgDetail.createRoute(orgId, OrgDetailTab.RISK))
                 },
                 onMonitorClick = { navController.navigate(Screen.Monitor.route) },
+                onNoticeClick = { navController.navigate(Screen.Notice.route) },
             )
         }
 
         composable(Screen.Monitor.route) {
             MonitorScreen(onBackClick = { navController.popBackStack() })
+        }
+
+        composable(Screen.Notice.route) {
+            NoticeScreen(onBackClick = { navController.popBackStack() })
         }
 
         composable(

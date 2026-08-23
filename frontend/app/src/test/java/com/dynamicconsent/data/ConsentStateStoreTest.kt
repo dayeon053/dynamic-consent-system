@@ -43,9 +43,7 @@ class ConsentStateStoreTest {
     }
 
     @Test
-    fun `seedHistory는 해당 기관 이력을 서버 이력으로 교체한다`() {
-        ConsentStateStore.setConsent("kakaotalk", 1, false, "이전 세션에서 남은 기록")
-
+    fun `seedHistory는 비어 있는 기관에만 서버 이력을 채운다`() {
         ConsentStateStore.seedHistory(
             "kakaotalk",
             listOf(ConsentChangeRecord("서버 기록", enabled = true, timestampMillis = 1_000L)),
@@ -54,6 +52,39 @@ class ConsentStateStoreTest {
         val history = ConsentStateStore.changeHistory.value.getValue("kakaotalk")
         assertEquals(1, history.size)
         assertEquals("서버 기록", history[0].consentTitle)
+    }
+
+    @Test
+    fun `seedHistory는 이미 쌓인 기록을 덮어쓰지 않는다`() {
+        // 토글 직후(서버 전송 전) 화면을 나갔다 다시 들어오는 상황.
+        // 덮어쓰면 방금 누른 토글이 '동의 변경 내역'에서 조용히 사라진다.
+        ConsentStateStore.setConsent("kakaotalk", 1, false, "방금 끈 동의")
+
+        ConsentStateStore.seedHistory(
+            "kakaotalk",
+            listOf(ConsentChangeRecord("서버가 아는 예전 기록", enabled = true, timestampMillis = 1_000L)),
+        )
+
+        val history = ConsentStateStore.changeHistory.value.getValue("kakaotalk")
+        assertEquals(listOf("방금 끈 동의"), history.map { it.consentTitle })
+    }
+
+    @Test
+    fun `재진입해서 다시 시드해도 기존 기록이 유지된다`() {
+        // 첫 진입: 서버 이력으로 채움 → 토글 → 재진입해서 다시 시드
+        ConsentStateStore.seedHistory(
+            "kakaotalk",
+            listOf(ConsentChangeRecord("서버 기록", enabled = true, timestampMillis = 1_000L)),
+        )
+        ConsentStateStore.setConsent("kakaotalk", 2, false, "방금 끈 동의")
+
+        ConsentStateStore.seedHistory(
+            "kakaotalk",
+            listOf(ConsentChangeRecord("서버 기록", enabled = true, timestampMillis = 1_000L)),
+        )
+
+        val history = ConsentStateStore.changeHistory.value.getValue("kakaotalk")
+        assertEquals(listOf("방금 끈 동의", "서버 기록"), history.map { it.consentTitle })
     }
 
     @Test

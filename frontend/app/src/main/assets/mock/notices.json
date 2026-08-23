@@ -1,0 +1,7 @@
+[
+  { "companyId": 1, "companyName": "카카오", "crawledAt": "2026-08-12T03:00:14.312044", "isChanged": true },
+  { "companyId": 4, "companyName": "토스", "crawledAt": "2026-08-12T03:00:09.884517", "isChanged": false },
+  { "companyId": 3, "companyName": "배달의민족", "crawledAt": "2026-08-12T03:00:05.221903", "isChanged": false },
+  { "companyId": 2, "companyName": "네이버", "crawledAt": "2026-08-11T03:00:11.470882", "isChanged": true },
+  { "companyId": 5, "companyName": "당근마켓", "crawledAt": "2026-08-11T03:00:02.905331", "isChanged": false }
+]
