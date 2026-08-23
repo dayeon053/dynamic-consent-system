@@ -97,12 +97,38 @@ class OrgDetailViewModel @JvmOverloads constructor(
 
     fun toggleConsent(consentId: Int, enabled: Boolean) {
         val detail = _uiState.value.detail ?: return
+        val orgId = detail.organization.id
         val title = detail.consentDetail.optionalConsents
             .firstOrNull { it.id == consentId }?.title ?: return
         // 화면은 클라이언트 재계산으로 즉시 반응
-        ConsentStateStore.setConsent(detail.organization.id, consentId, enabled, title)
-        // 실 API 모드면 서버에도 반영 (디바운스). 실패해도 화면 상태는 유지된다.
-        consentSync?.onToggle(consentId, enabled)
+        ConsentStateStore.setConsent(orgId, consentId, enabled, title)
+        // 실 API 모드면 서버에도 반영 (디바운스). mock 모드면 sync가 null이라 여기서 끝난다.
+        consentSync?.onToggle(
+            consentItemId = consentId,
+            enabled = enabled,
+            onSuccess = { response ->
+                // 서버가 요청과 다른 상태를 돌려주면 서버를 정답으로 삼는다.
+                if (response.checked != enabled) {
+                    ConsentStateStore.correctConsent(orgId, consentId, response.checked)
+                    showToggleMessage("서버에 반영된 상태로 맞췄습니다.")
+                }
+            },
+            onError = {
+                // 전송이 실패했으니 서버는 이전 상태 그대로다. 화면만 바뀐 채 두면
+                // 다음 진입 때 조용히 되돌아가 더 혼란스러우므로, 지금 되돌리고 알린다.
+                ConsentStateStore.correctConsent(orgId, consentId, !enabled)
+                showToggleMessage("동의 변경을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.")
+            },
+        )
+    }
+
+    private fun showToggleMessage(message: String) {
+        _uiState.update { it.copy(toggleMessage = message) }
+    }
+
+    /** 스낵바를 띄운 뒤 호출해 같은 메시지가 다시 뜨지 않게 한다. */
+    fun consumeToggleMessage() {
+        _uiState.update { it.copy(toggleMessage = null) }
     }
 
     fun selectTab(tab: OrgDetailTab) {

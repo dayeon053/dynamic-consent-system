@@ -33,6 +33,19 @@ object ConsentStateStore {
         }
     }
 
+    /**
+     * 서버 전송 결과에 맞춰 체크 상태만 바로잡는다. **변경 이력은 남기지 않는다.**
+     *
+     * 사용자가 직접 누른 것이 아니라 전송 실패를 되돌리거나 서버 응답에 맞추는 보정이라,
+     * 이력에 남기면 '동의 변경 내역'에 사용자가 하지 않은 기록이 쌓인다.
+     */
+    fun correctConsent(orgId: String, consentId: Int, enabled: Boolean) {
+        _enabledConsents.update { current ->
+            val ids = current[orgId].orEmpty()
+            current + (orgId to if (enabled) ids + consentId else ids - consentId)
+        }
+    }
+
     fun setConsent(orgId: String, consentId: Int, enabled: Boolean, consentTitle: String) {
         _enabledConsents.update { current ->
             val ids = current[orgId].orEmpty()
