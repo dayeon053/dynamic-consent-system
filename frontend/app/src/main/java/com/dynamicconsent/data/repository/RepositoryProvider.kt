@@ -15,8 +15,15 @@ object RepositoryProvider {
         ApiOrganizationRepository(ApiClient.create(AppConfig.BASE_URL))
     }
 
+    private val apiNoticeRepository: ApiNoticeRepository by lazy {
+        ApiNoticeRepository(ApiClient.create(AppConfig.BASE_URL))
+    }
+
     fun organizationRepository(assets: AssetManager): OrganizationRepository =
         if (AppConfig.USE_REMOTE_API) apiRepository else DummyOrganizationRepository(assets)
+
+    fun noticeRepository(assets: AssetManager): NoticeRepository =
+        if (AppConfig.USE_REMOTE_API) apiNoticeRepository else DummyNoticeRepository(assets)
 
     /** 실 API 모드일 때 서버 동기화(PATCH)에 쓸 저장소. mock 모드면 null. */
     fun apiRepositoryOrNull(): ApiOrganizationRepository? =

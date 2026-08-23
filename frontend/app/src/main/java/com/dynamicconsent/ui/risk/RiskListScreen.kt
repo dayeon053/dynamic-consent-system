@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.CircularProgressIndicator
@@ -59,6 +60,7 @@ fun RiskListScreen(
     onBackClick: () -> Unit,
     onOrgDetailClick: (orgId: String) -> Unit,
     onMonitorClick: () -> Unit = {},
+    onNoticeClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: RiskListViewModel = viewModel(),
 ) {
@@ -78,6 +80,14 @@ fun RiskListScreen(
                     IconButton(onClick = {}) {
                         Icon(Icons.Default.Info, contentDescription = "정보", tint = BrandGreen)
                     }
+                    IconButton(onClick = onNoticeClick) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.List,
+                            contentDescription = "공지사항",
+                            tint = BrandGreen,
+                        )
+                    }
+                    // 벨 아이콘은 재은님의 감시 테스트 화면으로 간다 (기존 동작 유지)
                     IconButton(onClick = onMonitorClick) {
                         Icon(Icons.Default.Notifications, contentDescription = "알림", tint = BrandGreen)
                     }

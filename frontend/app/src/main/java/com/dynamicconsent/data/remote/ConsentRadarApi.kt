@@ -4,6 +4,7 @@ import com.dynamicconsent.data.remote.dto.CompanyResponse
 import com.dynamicconsent.data.remote.dto.ConsentItemResponse
 import com.dynamicconsent.data.remote.dto.ConsentPatchRequest
 import com.dynamicconsent.data.remote.dto.ConsentPatchResponse
+import com.dynamicconsent.data.remote.dto.NoticeResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.PATCH
@@ -40,4 +41,14 @@ interface ConsentRadarApi {
         @Path("consentItemId") consentItemId: Long,
         @Body body: ConsentPatchRequest,
     ): ConsentPatchResponse
+
+    /**
+     * 전체 기업의 약관 확인 기록 (공지사항 탭). 확인 시각 내림차순, offset 페이징.
+     * 사용자별이 아니라 전체 공통이라 userId를 받지 않는다.
+     */
+    @GET("notices")
+    suspend fun getNotices(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 20,
+    ): List<NoticeResponse>
 }
