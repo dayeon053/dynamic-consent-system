@@ -1,0 +1,473 @@
+
+
+
+
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>백엔드 파이프라인 단계별 검증 현황</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page:           #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --border:         rgba(11,11,11,0.10);
+    --good:           #0ca30c;
+    --good-wash:      #e6f6e6;
+    --warning:        #fab219;
+    --warning-wash:   #fff2d6;
+    --warning-strong: #fff0cf;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page:           #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --border:         rgba(255,255,255,0.10);
+      --good:           #0ca30c;
+      --good-wash:      #103310;
+      --warning:        #fab219;
+      --warning-wash:   #3a2c0a;
+      --warning-strong: #4a3608;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page:           #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --border:         rgba(255,255,255,0.10);
+    --good:           #0ca30c;
+    --good-wash:      #103310;
+    --warning:        #fab219;
+    --warning-wash:   #3a2c0a;
+    --warning-strong: #4a3608;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  html { scrollbar-width: none; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--text-primary);
+    scrollbar-width: none;
+  }
+  body::-webkit-scrollbar { display: none; }
+  .viz-root {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 40px 48px 32px;
+  }
+  header.page-head {
+    margin-bottom: 20px;
+  }
+  header.page-head h1 {
+    font-size: 26px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  header.page-head .meta {
+    font-size: 13px;
+    color: var(--text-secondary);
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  header.page-head .meta span b { color: var(--text-primary); font-weight: 600; }
+
+  .banner {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: color-mix(in srgb, var(--warning) 10%, var(--surface-1));
+    border: 1px solid color-mix(in srgb, var(--warning) 45%, var(--border));
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 28px;
+    font-size: 13.5px;
+    line-height: 1.55;
+  }
+  .banner .icon { font-size: 18px; line-height: 1; margin-top: 1px; }
+  .banner b { font-weight: 700; }
+  .banner .sub { color: var(--text-secondary); }
+
+  .flow {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+  }
+  .stage-wrap {
+    display: flex;
+    align-items: flex-start;
+  }
+  .arrow {
+    flex: 0 0 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .arrow svg { display: block; }
+
+  .stage {
+    flex: 1 1 0;
+    min-width: 0;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+  }
+  .stage.status-good { border-top: 4px solid var(--good); }
+  .stage.status-warning {
+    border: 2px solid var(--warning);
+    border-top: 6px solid var(--warning);
+    background: var(--warning-wash);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--warning) 18%, transparent);
+    transform: scale(1.045);
+    z-index: 2;
+  }
+
+  .stage-step {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+  .stage-title {
+    font-size: 17px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .stage.status-warning .stage-title { font-size: 18px; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 9px 3px 7px;
+    border-radius: 999px;
+    width: fit-content;
+  }
+  .badge.good { background: var(--good-wash); color: var(--good); }
+  .badge.warning { background: var(--warning-strong); color: #7a5200; }
+  .badge .dot { font-size: 13px; line-height: 1; }
+
+  .badge.unwired {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1.5px dashed var(--text-muted);
+  }
+  .unwired-note {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--text-muted) 10%, transparent);
+    border-radius: 7px;
+    padding: 7px 9px;
+    line-height: 1.5;
+  }
+  .unwired-note b { color: var(--text-primary); }
+
+  .resolved-note {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    background: var(--good-wash);
+    border-radius: 7px;
+    padding: 7px 9px;
+    line-height: 1.5;
+  }
+  .resolved-note b { color: var(--good); }
+
+  .stage-body { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; }
+  .stage-body .label { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; display: block; margin-bottom: 2px; }
+  .stage-body .val { color: var(--text-primary); }
+
+  .count-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-top: 2px;
+  }
+  .count-row .num {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .stage.status-warning .count-row .num { color: #7a5200; }
+  .count-row .unit { font-size: 12px; color: var(--text-muted); }
+
+  .file-list {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    border-top: 1px solid var(--gridline);
+    padding-top: 7px;
+    margin-top: 2px;
+  }
+  .file-list code {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 10.5px;
+  }
+
+  .warning-callout {
+    background: #402e00;
+    background: color-mix(in srgb, var(--warning) 92%, black 8%);
+    color: #1a1200;
+    border-radius: 8px;
+    padding: 9px 11px;
+    font-size: 12.5px;
+    font-weight: 700;
+    line-height: 1.45;
+    margin-top: 2px;
+  }
+
+  .note {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin-top: -2px;
+  }
+
+  footer.summary {
+    margin-top: 30px;
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .sum-tile {
+    flex: 1 1 220px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+  }
+  .sum-tile .k { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .03em; font-weight: 700; }
+  .sum-tile .v { font-size: 20px; font-weight: 700; margin-top: 2px; }
+  .sum-tile .v.good { color: var(--good); }
+  .sum-tile .d { font-size: 11.5px; color: var(--text-secondary); margin-top: 3px; line-height: 1.4; }
+
+  .unverified {
+    margin-top: 18px;
+    font-size: 12px;
+    color: var(--text-muted);
+    border-top: 1px solid var(--gridline);
+    padding-top: 12px;
+    line-height: 1.6;
+  }
+  .unverified b { color: var(--text-secondary); }
+
+  @media print {
+    body { background: #fff; }
+    .viz-root { color-scheme: light; max-width: none; padding: 16px 20px; }
+    .stage.status-warning { transform: none; }
+  }
+
+  @media (max-width: 1100px) {
+    .flow { flex-direction: column; }
+    .arrow { transform: rotate(90deg); padding: 6px 0; }
+    .stage.status-warning { transform: none; }
+  }
+</style>
+</head>
+<body>
+<div class="viz-root" data-palette="good:#0ca30c,warning:#fab219">
+
+  <header class="page-head">
+    <h1>백엔드 파이프라인 단계별 검증 현황</h1>
+    <div class="meta">
+      <span>저장소: <b>consentradar/backend/consentradar</b> (branch <b>feature/sprint4-admin-auth</b>)</span>
+      <span>확인일: <b>2026-07-26</b></span>
+      <span>테스트 실행: <b>./gradlew test</b> + <b>./gradlew integrationTest</b> (실제 실행, 캐시 무시)</span>
+    </div>
+  </header>
+
+  <div class="banner">
+    <div class="icon">🔗</div>
+    <div>
+      <b>5단계를 자동으로 잇는 진입점은 현재 없음.</b>
+      <span class="sub">
+        <code>PolicyCrawlScheduler</code>(매일 03:00, 유일한 <code>@Scheduled</code>)는 1~2단계(크롤링+변경감지)까지만 자동 실행하며,
+        DB저장(스냅샷 이후)·LLM파싱·위험도계산을 묶은 <code>RiskPipelineService</code>를 호출하는 코드가 main 소스에 없음
+        (호출부였던 <code>KakaoPipelineDemoRunner</code>는 검증 후 <code>@Component</code> 주석 처리되어 비활성 상태,
+        유일한 다른 호출자 <code>PolicyCrawlerService.crawlAndAnalyze()</code>도 그 자체를 부르는 곳이 없음).
+        아래 각 단계는 테스트 코드 기준 검증 현황이며, 실제 운영에서 5단계가 이어서 자동 실행된다는 뜻은 아님.
+        <b>2026-07-26 재확인</b>: 전체 소스에서 <code>@Scheduled</code>·활성 <code>@Component</code> 전수 grep 결과 동일 결론
+        (주석 처리 안 된 <code>@Component</code>는 5개뿐이며 전부 단순 빈 등록, 자동 실행 로직 없음).
+      </span>
+    </div>
+  </div>
+
+  <div class="flow">
+
+    <div class="stage-wrap">
+    <div class="stage status-good">
+      <div class="stage-step">STAGE 1</div>
+      <div class="stage-title">🕸️ 크롤링</div>
+      <span class="badge good"><span class="dot">●</span>실제 사이트로 검증됨 · 5/5 성공</span>
+      <div class="stage-body">
+        <span class="label">검증 방법</span>
+        <span class="val">실제 기업 5곳 사이트 접속 → <b>5곳 전부 성공</b> (하이브리드 크롤러 도입 후, 2026-07-26)</span>
+      </div>
+      <div class="resolved-note">
+        ✅ <b>배민·토스 SPA 문제 해결</b> — <code>PolicyBodyCrawler</code>를 하이브리드 구조로 확장:
+        Jsoup 우선 시도 → 텍스트 100자 미만(SPA로 판단) 시 헤드리스 브라우저(Playwright
+        Chromium)로 JS 렌더링 후 재시도.<br>
+        · 배달의민족(woowahan.com/policy/10): Jsoup 0자 → 헤드리스 폴백 <b>4,444자 성공</b><br>
+        · 토스(toss.im/privacy-policy): Jsoup 0자 → 헤드리스 폴백 <b>13,435자 성공</b><br>
+        · 기존 3곳(카카오·네이버·당근마켓)은 그대로 Jsoup 경로만 타며 헤드리스 미호출 —
+        <b>회귀 없음</b> 확인 (테스트로 검증)
+      </div>
+      <div class="count-row"><span class="num">16</span><span class="unit">개 테스트 · 4개 파일</span></div>
+      <div class="file-list">
+        <code>PolicyBodyCrawlerTest</code> 9 · <code>CompanyPolicyCrawlServiceTest</code> 2 ·
+        <code>PolicyChangeDetectionServiceTest</code> 3(mock repo 기반) · <code>PolicyCrawlSchedulerTest</code> 2
+      </div>
+      <div class="note">
+        근거: 2026-07-26 jshell로 <code>PolicyBodyCrawler</code> 실제 클래스 직접 호출해 5개 기업 전부 재크롤링 검증
+        (브랜치 <code>feature/hybrid-crawler</code>, 미병합) · docs/known_issues.md 갱신 완료
+      </div>
+    </div>
+    </div>
+
+    <div class="arrow"><svg width="22" height="16" viewBox="0 0 22 16"><path d="M0 8H20M20 8L13 1M20 8L13 15" stroke="#898781" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+    <div class="stage-wrap">
+    <div class="stage status-good">
+      <div class="stage-step">STAGE 2</div>
+      <div class="stage-title">🗄️ DB 저장</div>
+      <span class="badge good"><span class="dot">●</span>실제 MySQL로 검증됨</span>
+      <span class="badge unwired">🔌 자동 실행 경로 없음</span>
+      <div class="stage-body">
+        <span class="label">검증 방법</span>
+        <span class="val">로컬 MySQL(Docker <code>consentradar-mysql</code>) 대상 통합테스트로 저장·조회 확인 (테스트 픽스처 데이터, 실크롤링 데이터 아님)</span>
+      </div>
+      <div class="count-row"><span class="num">7</span><span class="unit">개 테스트 · 2개 파일</span></div>
+      <div class="file-list">
+        <code>ConsentItemBatchServiceTest</code> 3(unit) ·
+        <code>ConsentItemBatchServiceIntegrationTest</code> 4(integration, 실 MySQL)
+      </div>
+      <div class="unwired-note">
+        mock이라 문제인 게 아니라 <b>애초에 호출하는 곳이 없음</b>: 테스트 대상 <code>ConsentItemBatchService.saveAll()</code>은
+        main 소스 어디서도 주입/호출되지 않는 별도 클래스. 실제 파이프라인(<code>RiskPipelineService</code>)은 이 서비스를
+        거치지 않고 리포지토리에 직접 저장하는데, 그 <code>RiskPipelineService</code>조차 호출부가 없음.
+      </div>
+    </div>
+    </div>
+
+    <div class="arrow"><svg width="22" height="16" viewBox="0 0 22 16"><path d="M0 8H20M20 8L13 1M20 8L13 15" stroke="#898781" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+    <div class="stage-wrap">
+    <div class="stage status-warning">
+      <div class="stage-step">STAGE 3</div>
+      <div class="stage-title">🤖 LLM 파싱</div>
+      <span class="badge warning"><span class="dot">▲</span>mock으로만 검증됨</span>
+      <span class="badge unwired">🔌 자동 실행 경로도 없음</span>
+      <div class="stage-body">
+        <span class="label">검증 방법</span>
+        <span class="val">로컬 mock HTTP 서버(java HttpServer) 응답을 파싱하는 로직만 테스트</span>
+      </div>
+      <div class="count-row"><span class="num">22</span><span class="unit">개 테스트 · 3개 파일</span></div>
+      <div class="file-list">
+        <code>LlmClientTest</code> 1 · <code>LlmResponseParserTest</code>(backend) 8 · <code>LlmResponseParserTest</code>(common-model) 13
+      </div>
+      <div class="warning-callout">
+        ⚠️ 실제 OpenAI API 호출 이력 없음 — 하드코딩된 mock 응답으로만 테스트됨<br>
+        (<code>LLM_ENABLED</code>가 <code>true</code>로 설정된 기록 없음 · <code>.env</code>/CI/실행스크립트 어디에도 없음 ·
+        <code>docs/stage3_progress.md</code>: "API 키 발급 후 실제 호출로 교체" — 아직 미착수)
+      </div>
+    </div>
+    </div>
+
+    <div class="arrow"><svg width="22" height="16" viewBox="0 0 22 16"><path d="M0 8H20M20 8L13 1M20 8L13 15" stroke="#898781" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+    <div class="stage-wrap">
+    <div class="stage status-good">
+      <div class="stage-step">STAGE 4</div>
+      <div class="stage-title">📐 위험도 계산</div>
+      <span class="badge good"><span class="dot">●</span>공식 기준 검증됨</span>
+      <span class="badge unwired">🔌 자동 실행 경로 없음</span>
+      <div class="stage-body">
+        <span class="label">검증 방법</span>
+        <span class="val">문서화된 공식 Risk Score = DS + (ES×TF×PC×AI)×2 기준 단위테스트로 경계값·등급 검증</span>
+      </div>
+      <div class="count-row"><span class="num">21</span><span class="unit">개 테스트 · 4개 파일</span></div>
+      <div class="file-list">
+        <code>RiskCalculatorTest</code>(backend) 6 · <code>RiskCalculatorTest</code>(common-model) 11 ·
+        <code>RiskGradeBoundaryTest</code> 1 · <code>RiskResultTest</code> 3
+      </div>
+      <div class="unwired-note">
+        mock 문제 아님 — <code>RiskCalculator</code>는 common-model의 순수 함수라 그 자체로 정확히 검증됨.
+        다만 이를 실제 데이터에 대해 호출하는 <code>RiskPipelineService</code>가 어디서도 호출되지 않아
+        <b>운영 중 자동으로 실행될 경로가 없음</b>.
+      </div>
+    </div>
+    </div>
+
+    <div class="arrow"><svg width="22" height="16" viewBox="0 0 22 16"><path d="M0 8H20M20 8L13 1M20 8L13 15" stroke="#898781" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+    <div class="stage-wrap">
+    <div class="stage status-good">
+      <div class="stage-step">STAGE 5</div>
+      <div class="stage-title">🌐 API 서버</div>
+      <span class="badge good"><span class="dot">●</span>통합테스트로 검증됨</span>
+      <div class="stage-body">
+        <span class="label">검증 방법</span>
+        <span class="val">MockMvc 단위테스트 + 실제 MySQL·Spring Security 컨텍스트 통합테스트로 인증·API 응답 검증</span>
+      </div>
+      <div class="count-row"><span class="num">28</span><span class="unit">개 테스트 · 7개 파일</span></div>
+      <div class="file-list">
+        <code>AdminControllerTest</code> 5 · <code>AdminCompanyServiceTest</code> 7 · <code>ConsentApiServiceTest</code> 3 ·
+        <code>RiskHistoryControllerTest</code> 2 · <code>PersonalRiskHistoryServiceTest</code> 3 ·
+        <code>PersonalRiskHistoryServiceIntegrationTest</code> 4(integration) · <code>SecurityConfigIntegrationTest</code> 4(integration)
+      </div>
+    </div>
+    </div>
+
+  </div>
+
+  <footer class="summary">
+    <div class="sum-tile">
+      <div class="k">./gradlew test</div>
+      <div class="v good">83 / 83 통과</div>
+      <div class="d">backend 55건(하이브리드 크롤러 테스트 +2) + common-model 28건, 0 failure / 0 error (재실행 확인)</div>
+    </div>
+    <div class="sum-tile">
+      <div class="k">./gradlew integrationTest</div>
+      <div class="v good">12 / 12 통과</div>
+      <div class="d">실제 로컬 MySQL(Docker) 대상, 0 failure / 0 error (재실행 확인)</div>
+    </div>
+    <div class="sum-tile">
+      <div class="k">전체 테스트 파일</div>
+      <div class="v">21개</div>
+      <div class="d">5단계 합산 94건 + 컨텍스트 로드 스모크테스트(ConsentradarApplicationTests) 1건 = 95건</div>
+    </div>
+  </footer>
+
+  <div class="unverified">
+    <b>미확인:</b> 운영 서버에서의 실제 스케줄 실행 로그는 별도 로그 저장소가 없어 확인 불가(로컬 docker 환경 기준으로만 검증). 5단계 전체를 이어 실행한 결과는 2026-07-13 데모 러너(<code>KakaoPipelineDemoRunner</code>, 이후 비활성화) 콘솔 로그 1회가 유일하며, 이때도 크롤링은 목업 텍스트·LLM은 mock 응답이 사용됨. 하이브리드 크롤러(<code>feature/hybrid-crawler</code>)는 아직 develop에 병합되지 않은 별도 브랜치 상태.
+  </div>
+
+</div>
+</body>
+</html>
