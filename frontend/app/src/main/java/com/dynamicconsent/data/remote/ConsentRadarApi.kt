@@ -1,6 +1,7 @@
 package com.dynamicconsent.data.remote
 
 import com.dynamicconsent.data.remote.dto.CompanyResponse
+import com.dynamicconsent.data.remote.dto.ConsentHistoryResponse
 import com.dynamicconsent.data.remote.dto.ConsentItemResponse
 import com.dynamicconsent.data.remote.dto.ConsentPatchRequest
 import com.dynamicconsent.data.remote.dto.ConsentPatchResponse
@@ -51,4 +52,12 @@ interface ConsentRadarApi {
         @Query("page") page: Int = 0,
         @Query("size") size: Int = 20,
     ): List<NoticeResponse>
+
+    /**
+     * 동의 변경 이력(전체 기업 통합, 변경 시각 오름차순). 4-7(동의 변경 내역 탭)의 단일
+     * 소스 — PATCH(2-3) 응답엔 changed_at이 없으므로 이 API로만 이력을 가져온다
+     * (api_spec_v2_final.md 확정 사항 4번).
+     */
+    @GET("users/{userId}/consents/history")
+    suspend fun getConsentHistory(@Path("userId") userId: Long): List<ConsentHistoryResponse>
 }

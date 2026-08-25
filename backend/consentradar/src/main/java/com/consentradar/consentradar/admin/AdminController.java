@@ -1,8 +1,8 @@
 package com.consentradar.consentradar.admin;
 
-import com.consentradar.consentradar.admin.dto.AdminErrorResponse;
 import com.consentradar.consentradar.admin.dto.CompanyResponse;
 import com.consentradar.consentradar.admin.dto.CreateCompanyRequest;
+import com.consentradar.consentradar.common.ErrorResponse;
 import com.consentradar.consentradar.entity.Company;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,9 +35,9 @@ public class AdminController {
             Company company = adminCompanyService.createCompany(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(new CompanyResponse(company));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new AdminErrorResponse(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(e.getMessage()));
         } catch (CompanyConflictException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(new AdminErrorResponse(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(e.getMessage()));
         }
     }
 
@@ -48,9 +48,9 @@ public class AdminController {
             adminCompanyService.deleteCompany(companyId);
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new AdminErrorResponse(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse(e.getMessage()));
         } catch (CompanyConflictException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(new AdminErrorResponse(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(e.getMessage()));
         }
     }
 }

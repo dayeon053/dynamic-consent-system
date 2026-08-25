@@ -3,6 +3,7 @@ package com.dynamicconsent.ui.orgdetail
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.dynamicconsent.data.repository.ApiOrganizationRepository
 import com.dynamicconsent.data.repository.ConsentStateStore
 import com.dynamicconsent.data.repository.ConsentSyncManager
 import com.dynamicconsent.data.repository.OrganizationRepository
@@ -30,15 +31,18 @@ class OrgDetailViewModel @JvmOverloads constructor(
     private var currentOrgId: String? = null
     private var currentInitialTab: OrgDetailTab = OrgDetailTab.CONSENT
 
+    /** 실 API 모드일 때만 존재. mock 모드면 null이라 서버 동기화·이력 조회가 전부 비활성화된다. */
+    private val apiRepo: ApiOrganizationRepository? = RepositoryProvider.apiRepositoryOrNull()
+
     /**
      * 실 API 모드일 때만 동작하는 서버 동기화기.
      * 스위치 연타를 흡수해 마지막 상태만 PATCH로 전송하고, 성공 시 캐시를 무효화해 다음 조회에 서버값을 반영한다.
-     * mock 모드면 apiRepositoryOrNull()이 null이라 sync 자체가 생성되지 않는다.
+     * mock 모드면 apiRepo가 null이라 sync 자체가 생성되지 않는다.
      */
     private val consentSync: ConsentSyncManager? =
-        RepositoryProvider.apiRepositoryOrNull()?.let { apiRepo ->
+        apiRepo?.let { repo ->
             ConsentSyncManager(scope = viewModelScope) { consentItemId, enabled ->
-                apiRepo.patchConsent(consentItemId, enabled).also { apiRepo.invalidateCache() }
+                repo.patchConsent(consentItemId, enabled).also { repo.invalidateCache() }
             }
         }
 
@@ -75,7 +79,12 @@ class OrgDetailViewModel @JvmOverloads constructor(
                     .toSet(),
             )
 
-            // 스위치 토글 시 위험도 점수·등급·분석 정보가 즉시 재산출되고, 변경 기록도 함께 갱신된다.
+            // 실 API 모드: 동의 변경 내역 탭(4-7)은 2-8을 단일 소스로 쓴다(확정 사항 4번).
+            // 아래 combine 블록은 API 모드에서는 changeHistory를 건드리지 않고 이 조회 결과를 유지한다.
+            refreshConsentHistory(orgId)
+
+            // 스위치 토글 시 위험도 점수·등급·분석 정보가 즉시 재산출된다. mock 모드에서는
+            // 변경 기록도 ConsentStateStore의 로컬 이력을 그대로 함께 반영한다.
             combine(
                 ConsentStateStore.enabledConsents,
                 ConsentStateStore.changeHistory,
@@ -83,10 +92,37 @@ class OrgDetailViewModel @JvmOverloads constructor(
                 val recalculated =
                     RiskRecalculator.recalculate(baseDetail, consentStates[orgId].orEmpty())
                 recalculated to history[orgId].orEmpty()
-            }.collect { (recalculated, history) ->
+            }.collect { (recalculated, localHistory) ->
                 _uiState.update {
-                    it.copy(isLoading = false, error = null, detail = recalculated, changeHistory = history)
+                    it.copy(
+                        isLoading = false,
+                        error = null,
+                        detail = recalculated,
+                        // API 모드면 refreshConsentHistory()가 채운 서버 이력을 유지하고,
+                        // mock 모드면 로컬 이력을 그대로 쓴다.
+                        changeHistory = if (apiRepo != null) it.changeHistory else localHistory,
+                    )
                 }
+            }
+        }
+    }
+
+    /**
+     * 동의 변경 내역 탭(4-7)을 2-8(GET /users/{userId}/consents/history)로 채운다.
+     * mock 모드(apiRepo == null)면 아무 것도 하지 않는다 — 그 경우 화면은 여전히
+     * ConsentStateStore의 로컬 이력을 쓴다. 이력 조회 실패는 화면 전체를 막지 않고
+     * 조용히 무시한다(재진입·재토글 시 다시 시도됨).
+     */
+    private fun refreshConsentHistory(orgId: String) {
+        val repo = apiRepo ?: return
+        viewModelScope.launch {
+            try {
+                val records = repo.getConsentHistory(orgId)
+                _uiState.update { it.copy(changeHistory = records) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // 무시 — 탭이 비어 보일 뿐 화면 전체 오류로 확대하지 않는다.
             }
         }
     }
@@ -112,6 +148,8 @@ class OrgDetailViewModel @JvmOverloads constructor(
                     ConsentStateStore.correctConsent(orgId, consentId, response.checked)
                     showToggleMessage("서버에 반영된 상태로 맞췄습니다.")
                 }
+                // 서버 이력 테이블에 새 항목이 쌓였으니 변경 내역 탭도 최신화한다.
+                refreshConsentHistory(orgId)
             },
             onError = {
                 // 전송이 실패했으니 서버는 이전 상태 그대로다. 화면만 바뀐 채 두면

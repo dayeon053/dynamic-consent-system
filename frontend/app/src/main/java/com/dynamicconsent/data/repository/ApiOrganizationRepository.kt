@@ -1,8 +1,10 @@
 package com.dynamicconsent.data.repository
 
+import com.dynamicconsent.data.model.ConsentChangeRecord
 import com.dynamicconsent.data.model.Organization
 import com.dynamicconsent.data.model.OrganizationDetail
 import com.dynamicconsent.data.remote.CompanyMapper
+import com.dynamicconsent.data.remote.ConsentHistoryMapper
 import com.dynamicconsent.data.remote.ConsentRadarApi
 import com.dynamicconsent.data.remote.dto.ConsentPatchRequest
 import com.dynamicconsent.data.remote.dto.ConsentPatchResponse
@@ -43,6 +45,14 @@ class ApiOrganizationRepository(
     fun invalidateCache() {
         cache = null
     }
+
+    /**
+     * 동의 변경 내역 탭(4-7)이 쓰는 이력 조회. 2-8(GET /users/{userId}/consents/history)을
+     * 단일 소스로 사용한다 — PATCH 응답엔 changed_at이 없다(api_spec_v2_final.md 확정
+     * 사항 4번). 서버 응답은 전체 기업 통합이라 [orgId]로 걸러서 반환한다.
+     */
+    suspend fun getConsentHistory(orgId: String): List<ConsentChangeRecord> =
+        ConsentHistoryMapper.toChangeRecords(api.getConsentHistory(userId), orgId.toLong())
 
     private suspend fun loadAll(): Map<String, OrganizationDetail> {
         cache?.let { return it }

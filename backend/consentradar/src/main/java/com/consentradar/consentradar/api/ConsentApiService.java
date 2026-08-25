@@ -100,10 +100,10 @@ public class ConsentApiService {
     @Transactional
     public ConsentPatchResponse toggleConsent(Long userId, Long consentItemId, Boolean desiredChecked) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 userId: " + userId));
 
         ConsentItem consentItem = consentItemRepository.findById(consentItemId)
-                .orElseThrow(() -> new IllegalArgumentException("동의항목을 찾을 수 없습니다: " + consentItemId));
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 consentItemId: " + consentItemId));
 
         // 기존 체크 레코드가 있으면 갱신, 없으면 신규 생성
         UserConsentCheck check = userConsentCheckRepository
