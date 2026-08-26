@@ -26,7 +26,7 @@ class DummyOrganizationRepository(
         json.decodeFromString(text)
     }
 
-    override suspend fun getOrganizations(): List<Organization> = organizations
+    override suspend fun getOrganizations(): OrganizationsResult = OrganizationsResult(organizations)
 
     override suspend fun getOrganizationDetail(id: String): OrganizationDetail? = details[id]
 

@@ -274,7 +274,7 @@ private fun RequiredConsentRow(item: ConsentRequiredItem) {
 private fun flowImageResFor(orgId: String): Int? = when (orgId) {
     "kakaotalk" -> R.drawable.flow_kakaotalk
     "toss" -> R.drawable.flow_toss
-    "netflix" -> R.drawable.flow_netflix
+    // 네이버·배달의민족·당근마켓은 흐름도 이미지가 아직 없어 제공처 카드 목록으로 표시된다.
     else -> null
 }
 

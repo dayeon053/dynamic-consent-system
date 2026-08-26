@@ -44,9 +44,12 @@ class RiskListViewModel @JvmOverloads constructor(
         observeJob?.cancel()
         observeJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
+            // 폴백 여부는 이 조회의 결과값이라, 다른 화면이 동시에 조회해도 섞이지 않는다.
+            var isFallback = false
             val baseDetails = try {
-                val organizations = repository.getOrganizations()
-                organizations
+                val result = repository.getOrganizations()
+                isFallback = result.isFallback
+                result.organizations
                     .mapNotNull { repository.getOrganizationDetail(it.id) }
                     .associateBy { it.organization.id }
             } catch (e: CancellationException) {
@@ -86,6 +89,7 @@ class RiskListViewModel @JvmOverloads constructor(
                         organizations = sortedOrganizations,
                         selectedOrganizationId = selectedId,
                         selectedDetail = selectedId?.let { recalculatedDetails[it] },
+                        isFallback = isFallback,
                     )
                 }
             }
