@@ -1,5 +1,6 @@
 package com.dynamicconsent.ui.navigation
 
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -20,6 +21,17 @@ fun AppNavHost(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
 ) {
+    val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
+
+    /**
+     * 상단 뒤로가기 화살표를 시스템 뒤로가기와 똑같이 동작시킨다.
+     *
+     * 앱에 홈 화면이 따로 없어 위험기관리스트가 시작 화면인데, 여기서 popBackStack()은
+     * 되돌아갈 화면이 없어 아무 일도 하지 않는다(화살표가 먹통으로 보인다).
+     * 시스템 뒤로가기로 넘기면 되돌아갈 화면이 있으면 그리로 가고, 없으면 앱을 벗어난다.
+     */
+    val onBackClick: () -> Unit = { backDispatcher?.onBackPressed() }
+
     NavHost(
         navController = navController,
         startDestination = Screen.RiskList.route,
@@ -27,7 +39,7 @@ fun AppNavHost(
     ) {
         composable(Screen.RiskList.route) {
             RiskListScreen(
-                onBackClick = { navController.popBackStack() },
+                onBackClick = onBackClick,
                 onOrgDetailClick = { orgId ->
                     navController.navigate(Screen.OrgDetail.createRoute(orgId, OrgDetailTab.RISK))
                 },
@@ -37,11 +49,11 @@ fun AppNavHost(
         }
 
         composable(Screen.Monitor.route) {
-            MonitorScreen(onBackClick = { navController.popBackStack() })
+            MonitorScreen(onBackClick = onBackClick)
         }
 
         composable(Screen.Notice.route) {
-            NoticeScreen(onBackClick = { navController.popBackStack() })
+            NoticeScreen(onBackClick = onBackClick)
         }
 
         composable(
@@ -64,7 +76,7 @@ fun AppNavHost(
             OrgDetailScreen(
                 orgId = orgId,
                 initialTab = initialTab,
-                onBackClick = { navController.popBackStack() },
+                onBackClick = onBackClick,
             )
         }
     }
