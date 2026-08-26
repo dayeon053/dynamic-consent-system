@@ -5,6 +5,9 @@ import com.consentradar.consentradar.entity.ConsentItem;
 import com.consentradar.consentradar.repository.ConsentItemRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Set;
+
 /**
  * itemName 기준으로 ConsentItem을 upsert한다. 기존 항목이 있으면 그 row를 재사용해
  * itemType/ds/es/tf/pc/ai만 갱신하고(UserConsentCheck 등 연관 데이터 보존), 없으면
@@ -54,5 +57,29 @@ public class ConsentItemUpsertService {
         item.setTfScore(tfScore);
         item.setPcScore(pcScore);
         item.setAiScore(aiScore);
+        // 재크롤링에서 다시 매칭됐다는 뜻이므로, 예전에 소프트 삭제(active=false)됐던
+        // 항목이 재분석에서 다시 나타나면 되살린다.
+        item.setActive(true);
+    }
+
+    /**
+     * 이번 크롤링/재분석 결과(matchedItemNames)에 더 이상 나타나지 않는 이 기업의 기존
+     * 활성 항목을 하드 삭제 대신 소프트 삭제(active=false)한다. UserConsentCheck/
+     * UserConsentHistory가 참조하고 있어도 FK가 깨지지 않는다 — 이력은 그대로 보존된다.
+     *
+     * [TODO 확정 — RiskPipelineService.analyzeAndSaveRisk() 143~147행] "이번 크롤링 결과에
+     * 더 이상 나타나지 않는 예전 ConsentItem을 삭제할지, 만료 플래그로 남길지" 결정: 만료
+     * 플래그(소프트 삭제)로 확정.
+     */
+    public void deactivateMissing(Company company, Set<String> matchedItemNames) {
+        List<ConsentItem> currentlyActive =
+                consentItemRepository.findByCompany_CompanyIdAndActiveTrue(company.getCompanyId());
+
+        for (ConsentItem item : currentlyActive) {
+            if (!matchedItemNames.contains(item.getItemName())) {
+                item.setActive(false);
+                consentItemRepository.save(item);
+            }
+        }
     }
 }

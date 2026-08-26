@@ -47,6 +47,17 @@ public class ConsentItem {
     @Column(nullable = false)
     private double aiScore;               // AI 위험계수 (AI Risk Factor) - 1.0 / 1.5
 
+    /**
+     * 소프트 삭제 플래그. 재크롤링/재분석 시 이번 LLM 응답에 더 이상 나타나지 않는 기존
+     * 항목은 물리적으로 지우지 않고 이 값만 false로 내린다({@link
+     * com.consentradar.consentradar.consentitem.ConsentItemUpsertService#deactivateMissing}) —
+     * UserConsentCheck/UserConsentHistory가 이 row를 FK로 참조하고 있어 하드 삭제하면 이력이
+     * 끊기기 때문이다. 위험도 계산(PersonalRiskCalculator)과 동의 항목 목록 API는 반드시
+     * active=true인 항목만 조회해야 한다.
+     */
+    @Column(name = "is_active", nullable = false)
+    private boolean active = true;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
 

@@ -71,7 +71,7 @@ class ConsentApiServiceTest {
     @Test
     void getConsentItems_returnsRequiredItemAlwaysChecked_evenWithNoUserCheckRecord() {
         ConsentItem required = consentItem(1L, ConsentItem.ItemType.REQUIRED);
-        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(required));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(COMPANY_ID)).thenReturn(List.of(required));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
                 .thenReturn(List.of());
 
@@ -85,7 +85,7 @@ class ConsentApiServiceTest {
     void getConsentItems_returnsOptionalItemChecked_onlyWhenUserActuallyCheckedIt() {
         ConsentItem checkedOptional = consentItem(1L, ConsentItem.ItemType.OPTIONAL);
         ConsentItem uncheckedOptional = consentItem(2L, ConsentItem.ItemType.OPTIONAL);
-        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID))
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(COMPANY_ID))
                 .thenReturn(List.of(checkedOptional, uncheckedOptional));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
                 .thenReturn(List.of(userConsentCheck(checkedOptional, true), userConsentCheck(uncheckedOptional, false)));
@@ -105,7 +105,7 @@ class ConsentApiServiceTest {
         item.setTfScore(2);
         item.setPcScore(1.5);
         item.setAiScore(1.0);
-        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(item));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(COMPANY_ID)).thenReturn(List.of(item));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
                 .thenReturn(List.of());
 
@@ -128,7 +128,7 @@ class ConsentApiServiceTest {
         when(consentItemRepository.findById(1L)).thenReturn(Optional.of(required));
         when(userConsentCheckRepository.findByUser_UserIdAndConsentItem_ConsentItemId(USER_ID, 1L))
                 .thenReturn(Optional.of(existing));
-        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(required));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(COMPANY_ID)).thenReturn(List.of(required));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
                 .thenReturn(List.of(existing));
         when(riskScoreRepository.findByUser_UserIdAndCompany_CompanyIdAndScoredAtAndIsRepresentativeTrue(
@@ -148,7 +148,7 @@ class ConsentApiServiceTest {
         when(consentItemRepository.findById(1L)).thenReturn(Optional.of(required));
         when(userConsentCheckRepository.findByUser_UserIdAndConsentItem_ConsentItemId(USER_ID, 1L))
                 .thenReturn(Optional.of(existing));
-        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(required));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(COMPANY_ID)).thenReturn(List.of(required));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
                 .thenReturn(List.of(existing));
         when(riskScoreRepository.findByUser_UserIdAndCompany_CompanyIdAndScoredAtAndIsRepresentativeTrue(
@@ -171,7 +171,7 @@ class ConsentApiServiceTest {
         when(consentItemRepository.findById(1L)).thenReturn(Optional.of(required));
         when(userConsentCheckRepository.findByUser_UserIdAndConsentItem_ConsentItemId(USER_ID, 1L))
                 .thenReturn(Optional.of(existing));
-        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(required));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(COMPANY_ID)).thenReturn(List.of(required));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
                 .thenReturn(List.of(existing));
         when(riskScoreRepository.findByUser_UserIdAndCompany_CompanyIdAndScoredAtAndIsRepresentativeTrue(
@@ -191,7 +191,7 @@ class ConsentApiServiceTest {
         when(consentItemRepository.findById(1L)).thenReturn(Optional.of(required));
         when(userConsentCheckRepository.findByUser_UserIdAndConsentItem_ConsentItemId(USER_ID, 1L))
                 .thenReturn(Optional.of(existing));
-        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(required));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(COMPANY_ID)).thenReturn(List.of(required));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
                 .thenReturn(List.of(existing));
         when(riskScoreRepository.findByUser_UserIdAndCompany_CompanyIdAndScoredAtAndIsRepresentativeTrue(
@@ -213,7 +213,7 @@ class ConsentApiServiceTest {
         when(consentItemRepository.findById(1L)).thenReturn(Optional.of(required));
         when(userConsentCheckRepository.findByUser_UserIdAndConsentItem_ConsentItemId(USER_ID, 1L))
                 .thenReturn(Optional.of(existing));
-        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(required));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(COMPANY_ID)).thenReturn(List.of(required));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
                 .thenReturn(List.of(existing));
         when(riskScoreRepository.findByUser_UserIdAndCompany_CompanyIdAndScoredAtAndIsRepresentativeTrue(
@@ -235,7 +235,7 @@ class ConsentApiServiceTest {
         when(consentItemRepository.findById(2L)).thenReturn(Optional.of(optional));
         when(userConsentCheckRepository.findByUser_UserIdAndConsentItem_ConsentItemId(USER_ID, 2L))
                 .thenReturn(Optional.empty());
-        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(optional));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(COMPANY_ID)).thenReturn(List.of(optional));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
                 .thenReturn(List.of()); // 새로 만든 체크는 저장 목업이라 리포지토리엔 아직 없음
 
@@ -276,7 +276,7 @@ class ConsentApiServiceTest {
         when(consentItemRepository.findById(1L)).thenReturn(Optional.of(corrupted));
         when(userConsentCheckRepository.findByUser_UserIdAndConsentItem_ConsentItemId(USER_ID, 1L))
                 .thenReturn(Optional.of(existing));
-        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(corrupted));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(COMPANY_ID)).thenReturn(List.of(corrupted));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
                 .thenReturn(List.of(existing));
 
@@ -295,7 +295,7 @@ class ConsentApiServiceTest {
         when(consentItemRepository.findById(1L)).thenReturn(Optional.of(required));
         when(userConsentCheckRepository.findByUser_UserIdAndConsentItem_ConsentItemId(USER_ID, 1L))
                 .thenReturn(Optional.of(existing));
-        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(required));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(COMPANY_ID)).thenReturn(List.of(required));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
                 .thenReturn(List.of(existing));
         when(riskScoreRepository.findByUser_UserIdAndCompany_CompanyIdAndScoredAtAndIsRepresentativeTrue(
@@ -322,7 +322,7 @@ class ConsentApiServiceTest {
         when(consentItemRepository.findById(1L)).thenReturn(Optional.of(required));
         when(userConsentCheckRepository.findByUser_UserIdAndConsentItem_ConsentItemId(USER_ID, 1L))
                 .thenReturn(Optional.of(existing));
-        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(required));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(COMPANY_ID)).thenReturn(List.of(required));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
                 .thenReturn(List.of(existing));
         when(riskScoreRepository.findByUser_UserIdAndCompany_CompanyIdAndScoredAtAndIsRepresentativeTrue(
@@ -345,7 +345,7 @@ class ConsentApiServiceTest {
         when(userConsentCheckRepository.findByUser_UserIdAndConsentItem_ConsentItemId(USER_ID, 1L))
                 .thenReturn(Optional.of(existing));
         // 비정상 케이스: 이 기업엔 동의 항목이 하나도 없다고 응답하도록 목업
-        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of());
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(COMPANY_ID)).thenReturn(List.of());
 
         ConsentPatchResponse response = consentApiService.toggleConsent(USER_ID, 1L, null);
 
@@ -370,7 +370,7 @@ class ConsentApiServiceTest {
         when(consentItemRepository.findById(2L)).thenReturn(Optional.of(optional));
         when(userConsentCheckRepository.findByUser_UserIdAndConsentItem_ConsentItemId(USER_ID, 2L))
                 .thenReturn(Optional.of(check));
-        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(required, optional));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(COMPANY_ID)).thenReturn(List.of(required, optional));
         // 재계산 시점엔 이미 이 check 객체가 토글된 뒤이므로(같은 트랜잭션), 목업이 같은 참조를 돌려주면
         // isChecked()가 true로 바뀐 상태가 그대로 반영된다.
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
@@ -397,8 +397,8 @@ class ConsentApiServiceTest {
                 5, 3, 3, 1.5, 1.5); // 최댓값 45.5
 
         when(companyRepository.findAll()).thenReturn(List.of(lowRiskCompany, highRiskCompany));
-        when(consentItemRepository.findByCompany_CompanyId(100L)).thenReturn(List.of(lowRiskItem));
-        when(consentItemRepository.findByCompany_CompanyId(200L)).thenReturn(List.of(highRiskItem));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(100L)).thenReturn(List.of(lowRiskItem));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(200L)).thenReturn(List.of(highRiskItem));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, 100L))
                 .thenReturn(List.of());
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, 200L))
@@ -419,8 +419,8 @@ class ConsentApiServiceTest {
                 1, 1, 1, 1.0, 1.0); // 3.0 (양수 최솟값)
 
         when(companyRepository.findAll()).thenReturn(List.of(noItemsCompany, normalCompany));
-        when(consentItemRepository.findByCompany_CompanyId(300L)).thenReturn(List.of()); // 동의항목 자체가 없음
-        when(consentItemRepository.findByCompany_CompanyId(100L)).thenReturn(List.of(item));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(300L)).thenReturn(List.of()); // 동의항목 자체가 없음
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(100L)).thenReturn(List.of(item));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, 100L))
                 .thenReturn(List.of());
 
@@ -455,7 +455,7 @@ class ConsentApiServiceTest {
         snapshot.setCrawledAt(crawledAt);
 
         when(companyRepository.findAll()).thenReturn(List.of(company));
-        when(consentItemRepository.findByCompany_CompanyId(100L)).thenReturn(List.of(item));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(100L)).thenReturn(List.of(item));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, 100L))
                 .thenReturn(List.of());
         when(policySnapshotRepository.findFirstByCompany_CompanyIdOrderByCrawledAtDesc(100L))
@@ -479,7 +479,7 @@ class ConsentApiServiceTest {
         Company company = company(100L, "수집전기업");
 
         when(companyRepository.findAll()).thenReturn(List.of(company));
-        when(consentItemRepository.findByCompany_CompanyId(100L)).thenReturn(List.of());
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(100L)).thenReturn(List.of());
         when(policySnapshotRepository.findFirstByCompany_CompanyIdOrderByCrawledAtDesc(100L))
                 .thenReturn(Optional.empty());
 
@@ -501,8 +501,8 @@ class ConsentApiServiceTest {
                 1, 1, 1, 1.0, 1.0); // 3.0
 
         when(companyRepository.findAll()).thenReturn(List.of(corruptedCompany, normalCompany));
-        when(consentItemRepository.findByCompany_CompanyId(400L)).thenReturn(List.of(corruptedItem));
-        when(consentItemRepository.findByCompany_CompanyId(100L)).thenReturn(List.of(normalItem));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(400L)).thenReturn(List.of(corruptedItem));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(100L)).thenReturn(List.of(normalItem));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, 400L))
                 .thenReturn(List.of());
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, 100L))
