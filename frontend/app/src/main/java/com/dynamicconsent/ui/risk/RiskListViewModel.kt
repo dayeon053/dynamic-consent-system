@@ -9,6 +9,7 @@ import com.dynamicconsent.data.repository.OrganizationRepository
 import com.dynamicconsent.data.repository.RepositoryProvider
 import com.dynamicconsent.domain.RiskRecalculator
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +28,12 @@ class RiskListViewModel @JvmOverloads constructor(
     /** 동의 상태를 반영해 재산출된 최신 상세 데이터 (orgId 기준) */
     private var recalculatedDetails: Map<String, OrganizationDetail> = emptyMap()
 
+    /**
+     * 진행 중인 로드/구독. 새로고침을 연타해도 collect가 겹쳐 쌓이지 않도록
+     * 새로 시작하기 전에 이전 것을 취소한다.
+     */
+    private var observeJob: Job? = null
+
     init {
         observeOrganizations()
     }
@@ -34,11 +41,15 @@ class RiskListViewModel @JvmOverloads constructor(
     fun retry() = observeOrganizations()
 
     private fun observeOrganizations() {
-        viewModelScope.launch {
+        observeJob?.cancel()
+        observeJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
+            // 폴백 여부는 이 조회의 결과값이라, 다른 화면이 동시에 조회해도 섞이지 않는다.
+            var isFallback = false
             val baseDetails = try {
-                val organizations = repository.getOrganizations()
-                organizations
+                val result = repository.getOrganizations()
+                isFallback = result.isFallback
+                result.organizations
                     .mapNotNull { repository.getOrganizationDetail(it.id) }
                     .associateBy { it.organization.id }
             } catch (e: CancellationException) {
@@ -49,9 +60,6 @@ class RiskListViewModel @JvmOverloads constructor(
                 }
                 return@launch
             }
-
-            // 폴백 여부는 목록 조회 직후 값이 확정된다 (아래 collect는 계속 도므로 여기서 붙잡아 둔다).
-            val isFallback = repository.isFallback
 
             baseDetails.values.forEach { detail ->
                 ConsentStateStore.initialize(

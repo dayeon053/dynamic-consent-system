@@ -4,6 +4,7 @@ import com.dynamicconsent.data.model.Organization
 import com.dynamicconsent.data.model.OrganizationDetail
 import com.dynamicconsent.data.model.RiskGrade
 import com.dynamicconsent.data.repository.OrganizationRepository
+import com.dynamicconsent.data.repository.OrganizationsResult
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -36,10 +37,10 @@ class WatchedAppRegistryTest {
         var callCount = 0
             private set
 
-        override suspend fun getOrganizations(): List<Organization> {
+        override suspend fun getOrganizations(): OrganizationsResult {
             callCount++
             if (shouldFail) throw IllegalStateException("network down")
-            return organizations
+            return OrganizationsResult(organizations)
         }
 
         override suspend fun getOrganizationDetail(id: String): OrganizationDetail? = null

@@ -84,7 +84,7 @@ class ApiOrganizationRepositoryTest {
     fun `기업 목록을 파싱해 위험도 내림차순으로 반환한다`() = runTest {
         enqueueAll()
 
-        val organizations = repository.getOrganizations()
+        val organizations = repository.getOrganizations().organizations
 
         assertEquals(listOf("카카오톡", "토스"), organizations.map { it.name })
         assertEquals(43.5, organizations[0].riskScore, 0.0)

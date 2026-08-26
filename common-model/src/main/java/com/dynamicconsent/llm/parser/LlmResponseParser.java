@@ -32,6 +32,7 @@ public class LlmResponseParser {
     private static final Pattern JSON_OBJECT_PATTERN =
             Pattern.compile("(\\{[\\s\\S]*\\})", Pattern.DOTALL);
 
+    private static final Set<String> VALID_ITEM_TYPE = Set.of("REQUIRED", "OPTIONAL");
     private static final Set<String> VALID_DS = Set.of("LOW", "MODERATE", "HIGH");
     private static final Set<String> VALID_ES = Set.of("LOW", "MEDIUM", "HIGH");
     private static final Set<String> VALID_TF = Set.of("SHORT", "MEDIUM", "LONG");
@@ -90,6 +91,7 @@ public class LlmResponseParser {
     private static void normalizeEnumValues(LlmRiskAnalysisResponse response) {
         if (response.getConsentItems() == null) return;
         for (ConsentItemAnalysis item : response.getConsentItems()) {
+            if (item.getItemType() != null) item.setItemType(item.getItemType().toUpperCase().trim());
             if (item.getDs() != null) item.setDs(item.getDs().toUpperCase().trim());
             if (item.getEs() != null) item.setEs(item.getEs().toUpperCase().trim());
             if (item.getTf() != null) item.setTf(item.getTf().toUpperCase().trim());
@@ -121,6 +123,7 @@ public class LlmResponseParser {
             throw new LlmParseException(prefix + ".itemName 누락");
         }
 
+        validateEnum(prefix + ".itemType", item.getItemType(), VALID_ITEM_TYPE);
         validateEnum(prefix + ".ds", item.getDs(), VALID_DS);
         validateEnum(prefix + ".es", item.getEs(), VALID_ES);
         validateEnum(prefix + ".tf", item.getTf(), VALID_TF);

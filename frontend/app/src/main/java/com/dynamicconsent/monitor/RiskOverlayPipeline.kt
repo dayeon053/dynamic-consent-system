@@ -41,7 +41,10 @@ class RiskOverlayPipeline(
             return false
         }
 
-        val org = repository.getOrganizations().firstOrNull { it.id == orgId }
+        // result.isFallback = 서버 대신 mock으로 채워진 조회. 오버레이에 "오프라인 데이터"
+        // 라벨을 붙일 때 이 값을 RiskOverlayService.start()로 넘기면 된다 (요구사항 10-B ②③).
+        val result = repository.getOrganizations()
+        val org = result.organizations.firstOrNull { it.id == orgId }
         if (org == null) {
             Log.w(TAG, "위험도 데이터 없음: orgId=$orgId")
             return false
