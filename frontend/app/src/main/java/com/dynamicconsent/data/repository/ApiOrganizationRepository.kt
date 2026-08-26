@@ -23,10 +23,11 @@ class ApiOrganizationRepository(
 
     private var cache: Map<String, OrganizationDetail>? = null
 
-    override suspend fun getOrganizations(): List<Organization> =
+    override suspend fun getOrganizations(): OrganizationsResult = OrganizationsResult(
         loadAll().values
             .map { it.organization }
-            .sortedByDescending { it.riskScore }
+            .sortedByDescending { it.riskScore },
+    )
 
     override suspend fun getOrganizationDetail(id: String): OrganizationDetail? = loadAll()[id]
 

@@ -59,7 +59,7 @@ class WatchedAppRegistry(
         return mutex.withLock {
             lastAttemptAt = nowProvider()
             try {
-                val organizations = repository.getOrganizations()
+                val organizations = repository.getOrganizations().organizations
                 val mapping = buildMapping(organizations)
                 if (mapping.isEmpty()) {
                     logger("감시 대상 없음: packageName이 등록된 기업이 하나도 없습니다", null)

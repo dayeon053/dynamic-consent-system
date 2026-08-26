@@ -20,7 +20,16 @@ object RepositoryProvider {
     }
 
     fun organizationRepository(assets: AssetManager): OrganizationRepository =
-        if (AppConfig.USE_REMOTE_API) apiRepository else DummyOrganizationRepository(assets)
+        if (AppConfig.USE_REMOTE_API) {
+            // 폴백 래퍼는 상태를 갖지 않으므로 호출자마다 새로 만들어도 된다.
+            // 무거운 쪽(응답 캐시를 든 apiRepository)은 그대로 공유한다.
+            FallbackOrganizationRepository(
+                remote = apiRepository,
+                fallback = DummyOrganizationRepository(assets),
+            )
+        } else {
+            DummyOrganizationRepository(assets)
+        }
 
     fun noticeRepository(assets: AssetManager): NoticeRepository =
         if (AppConfig.USE_REMOTE_API) apiNoticeRepository else DummyNoticeRepository(assets)
