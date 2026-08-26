@@ -6,6 +6,7 @@ import com.consentradar.consentradar.api.dto.ConsentPatchResponse;
 import com.consentradar.consentradar.consenthistory.UserConsentHistoryRecorder;
 import com.consentradar.consentradar.entity.Company;
 import com.consentradar.consentradar.entity.ConsentItem;
+import com.consentradar.consentradar.entity.PolicySnapshot;
 import com.consentradar.consentradar.entity.RiskScore;
 import com.consentradar.consentradar.entity.User;
 import com.consentradar.consentradar.entity.UserConsentCheck;
@@ -20,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -42,6 +44,7 @@ class ConsentApiServiceTest {
     @Mock private ConsentItemRepository consentItemRepository;
     @Mock private UserConsentCheckRepository userConsentCheckRepository;
     @Mock private CompanyRepository companyRepository;
+    @Mock private PolicySnapshotRepository policySnapshotRepository;
     @Mock private RiskScoreRepository riskScoreRepository;
     @Mock private UserConsentHistoryRecorder userConsentHistoryRecorder;
 
@@ -61,7 +64,7 @@ class ConsentApiServiceTest {
                 new PersonalRiskHistoryService(riskScoreRepository);
         consentApiService = new ConsentApiService(
                 userRepository, consentItemRepository, userConsentCheckRepository,
-                companyRepository, personalRiskCalculator,
+                companyRepository, policySnapshotRepository, personalRiskCalculator,
                 userConsentHistoryRecorder, personalRiskHistoryService);
     }
 
@@ -447,11 +450,16 @@ class ConsentApiServiceTest {
         // DS=5, ES=1,TF=1,PC=1.0,AI=1.0 -> 5 + (1*1*1*1)*2 = 7.0 -> LOW
         ConsentItem item = consentItemForCompany(1L, company, ConsentItem.ItemType.REQUIRED,
                 5, 1, 1, 1.0, 1.0);
+        LocalDateTime crawledAt = LocalDateTime.of(2026, 8, 20, 3, 0, 0);
+        PolicySnapshot snapshot = new PolicySnapshot();
+        snapshot.setCrawledAt(crawledAt);
 
         when(companyRepository.findAll()).thenReturn(List.of(company));
         when(consentItemRepository.findByCompany_CompanyId(100L)).thenReturn(List.of(item));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, 100L))
                 .thenReturn(List.of());
+        when(policySnapshotRepository.findFirstByCompany_CompanyIdOrderByCrawledAtDesc(100L))
+                .thenReturn(Optional.of(snapshot));
 
         CompanyRiskResponse response = consentApiService.getCompaniesSortedByRisk(USER_ID).get(0);
 
@@ -462,6 +470,22 @@ class ConsentApiServiceTest {
         assertTrue(response.isIsmsCertified());
         assertEquals(0, BigDecimal.valueOf(7.0).compareTo(response.getRiskScore()));
         assertEquals("LOW", response.getRiskGrade());
+        assertEquals(crawledAt, response.getCrawledAt());
+    }
+
+    @Test
+    void getCompaniesSortedByRisk_returnsNullCrawledAt_whenCompanyHasNoSnapshotYet() {
+        // 기업은 등록됐지만 아직 최초 크롤링 전(PolicySnapshot 없음)인 경우
+        Company company = company(100L, "수집전기업");
+
+        when(companyRepository.findAll()).thenReturn(List.of(company));
+        when(consentItemRepository.findByCompany_CompanyId(100L)).thenReturn(List.of());
+        when(policySnapshotRepository.findFirstByCompany_CompanyIdOrderByCrawledAtDesc(100L))
+                .thenReturn(Optional.empty());
+
+        CompanyRiskResponse response = consentApiService.getCompaniesSortedByRisk(USER_ID).get(0);
+
+        assertNull(response.getCrawledAt());
     }
 
     @Test
