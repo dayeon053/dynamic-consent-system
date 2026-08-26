@@ -18,6 +18,14 @@ llm:
   model: ${OPENAI_MODEL:gpt-4o-mini}
   base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1/chat/completions}
 
+# Windows 콘솔 기본 코드페이지(cp949 등) 때문에 로그의 한글이 깨져 보이는 문제 방지.
+# 실제 DB 저장값과는 무관한 순수 콘솔/로그파일 표시 문제였음(2026-08-26 확인) — 그래도
+# 로그를 읽는 사람이 헷갈리지 않도록 명시적으로 UTF-8을 강제한다.
+logging:
+  charset:
+    console: UTF-8
+    file: UTF-8
+
 # 임시 관리자 인증 (PoC 단계, SecurityConfig 참고). User 테이블 기반 실제 로그인이 붙기 전까지만 쓴다.
 # password 기본값은 로컬 개발 전용 placeholder다 — 배포 환경에서는 반드시 ADMIN_PASSWORD
 # 환경변수로 교체할 것 (안 바꾸고 그대로 뜨면 SecurityConfig가 시작 시 WARN 로그를 남긴다).
