@@ -1,8 +1,10 @@
 package com.dynamicconsent.data.repository
 
+import com.dynamicconsent.data.model.ConsentChangeRecord
 import com.dynamicconsent.data.model.Organization
 import com.dynamicconsent.data.model.OrganizationDetail
 import com.dynamicconsent.data.remote.CompanyMapper
+import com.dynamicconsent.data.remote.ConsentHistoryMapper
 import com.dynamicconsent.data.remote.ConsentRadarApi
 import com.dynamicconsent.data.remote.dto.ConsentPatchRequest
 import com.dynamicconsent.data.remote.dto.ConsentPatchResponse
@@ -38,6 +40,13 @@ class ApiOrganizationRepository(
             consentItemId = consentItemId.toLong(),
             body = ConsentPatchRequest(checked = checked),
         )
+
+    /**
+     * [orgId] 기업의 동의 변경 이력을 서버에서 받아 최신순으로 반환한다.
+     * 서버는 전체 기업 이력을 한 번에 주므로 기업별 필터는 매퍼가 처리한다.
+     */
+    suspend fun getConsentHistory(orgId: String): List<ConsentChangeRecord> =
+        ConsentHistoryMapper.toRecords(api.getConsentHistory(userId), orgId)
 
     /** 다음 조회 때 서버에서 다시 받아오도록 캐시를 비운다. */
     fun invalidateCache() {

@@ -74,3 +74,21 @@ data class ConsentPatchResponse(
     val newRiskScore: Double? = null,
     val newRiskGrade: RiskGrade? = null,
 )
+
+/**
+ * GET /users/{userId}/consents/history 응답 항목 (backend UserConsentHistoryItemDto 대응).
+ *
+ * 주의할 점 두 가지:
+ *  - **전체 기업의 이력**이 변경 시각 오름차순으로 한 번에 내려온다 → 기업별로 필터해서 써야 한다.
+ *  - 토글 응답(ConsentPatchResponse)은 `checked`인데 이 응답만 `isChecked`다 (백엔드 직렬화 차이).
+ */
+@Serializable
+data class ConsentHistoryResponse(
+    val consentItemId: Long,
+    val itemName: String,
+    val companyId: Long,
+    val companyName: String,
+    val isChecked: Boolean,
+    /** 타임존 표기가 없는 KST 기준 시각 (예: "2026-07-29T10:15:00") */
+    val changedAt: String,
+)

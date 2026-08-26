@@ -34,6 +34,24 @@ object ConsentStateStore {
     }
 
     /**
+     * 서버에서 받아온 이력으로 [orgId]의 변경 기록을 채운다(최신순 전달 전제).
+     *
+     * **이미 이 세션에서 쌓인 기록이 있으면 덮어쓰지 않는다.** [initialize]와 같은 규칙이다.
+     * 목적이 "앱을 껐다 켜도 이력이 남게" 하는 것이라 채울 값이 없을 때만 의미가 있는데,
+     * 덮어쓰면 방금 누른 토글이 사라진다 — 서버 전송은 300ms 디바운스 뒤에 나가므로
+     * 토글 직후 화면을 나갔다 들어오면 서버가 아직 모르는 상태의 이력으로 교체돼버린다.
+     */
+    fun seedHistory(orgId: String, records: List<ConsentChangeRecord>) {
+        _changeHistory.update { current ->
+            if (!current[orgId].isNullOrEmpty()) {
+                current
+            } else {
+                current + (orgId to records.take(MAX_HISTORY_PER_ORG))
+            }
+        }
+    }
+
+    /**
      * 서버 전송 결과에 맞춰 체크 상태만 바로잡는다. **변경 이력은 남기지 않는다.**
      *
      * 사용자가 직접 누른 것이 아니라 전송 실패를 되돌리거나 서버 응답에 맞추는 보정이라,

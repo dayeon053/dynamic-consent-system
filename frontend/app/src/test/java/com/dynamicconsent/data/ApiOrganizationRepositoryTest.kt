@@ -160,4 +160,40 @@ class ApiOrganizationRepositoryTest {
         assertEquals("""{"checked":true}""", server.takeRequest().body.readUtf8())
         assertEquals("""{"checked":true}""", server.takeRequest().body.readUtf8())
     }
+
+    @Test
+    fun `동의 변경 이력은 명세 경로로 조회해 해당 기업 것만 최신순으로 반환한다`() = runTest {
+        server.enqueue(
+            MockResponse().setBody(
+                """
+                [
+                  { "consentItemId": 12, "itemName": "맞춤형 광고 동의", "companyId": 1,
+                    "companyName": "카카오톡", "isChecked": true, "changedAt": "2026-07-29T10:15:00" },
+                  { "consentItemId": 21, "itemName": "신용정보 활용 동의", "companyId": 2,
+                    "companyName": "토스", "isChecked": false, "changedAt": "2026-07-29T11:00:00" },
+                  { "consentItemId": 12, "itemName": "맞춤형 광고 동의", "companyId": 1,
+                    "companyName": "카카오톡", "isChecked": false, "changedAt": "2026-07-29T12:30:00" }
+                ]
+                """.trimIndent(),
+            ),
+        )
+
+        val records = repository.getConsentHistory(orgId = "1")
+
+        assertEquals(2, records.size)
+        assertEquals(false, records[0].enabled)
+        assertEquals(true, records[1].enabled)
+        assertTrue(records[0].timestampMillis > records[1].timestampMillis)
+
+        val request = server.takeRequest()
+        assertEquals("GET", request.method)
+        assertEquals("/users/1/consents/history", request.path)
+    }
+
+    @Test
+    fun `이력이 비어 있으면 빈 목록을 반환한다`() = runTest {
+        server.enqueue(MockResponse().setBody("[]"))
+
+        assertTrue(repository.getConsentHistory(orgId = "1").isEmpty())
+    }
 }

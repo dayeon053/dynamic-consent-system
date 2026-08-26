@@ -30,13 +30,16 @@ class OrgDetailViewModel @JvmOverloads constructor(
     private var currentOrgId: String? = null
     private var currentInitialTab: OrgDetailTab = OrgDetailTab.CONSENT
 
+    /** 실 API 모드일 때만 존재한다 (mock 모드면 null). 서버 전송·이력 조회에 쓴다. */
+    private val apiRepository = RepositoryProvider.apiRepositoryOrNull()
+
     /**
      * 실 API 모드일 때만 동작하는 서버 동기화기.
      * 스위치 연타를 흡수해 마지막 상태만 PATCH로 전송하고, 성공 시 캐시를 무효화해 다음 조회에 서버값을 반영한다.
-     * mock 모드면 apiRepositoryOrNull()이 null이라 sync 자체가 생성되지 않는다.
+     * mock 모드면 apiRepository가 null이라 sync 자체가 생성되지 않는다.
      */
     private val consentSync: ConsentSyncManager? =
-        RepositoryProvider.apiRepositoryOrNull()?.let { apiRepo ->
+        apiRepository?.let { apiRepo ->
             ConsentSyncManager(scope = viewModelScope) { consentItemId, enabled ->
                 apiRepo.patchConsent(consentItemId, enabled).also { apiRepo.invalidateCache() }
             }
@@ -74,6 +77,19 @@ class OrgDetailViewModel @JvmOverloads constructor(
                     .map { it.id }
                     .toSet(),
             )
+
+            // 실 API 모드면 서버에 쌓인 변경 이력을 채운다 (앱을 다시 켜도 이력이 남도록).
+            // 이력 조회가 실패해도 상세 화면 자체는 그대로 보여준다 — 부가 정보이기 때문.
+            // runCatching은 CancellationException까지 삼켜 화면을 벗어나도 코루틴이 계속 진행되므로 쓰지 않는다.
+            apiRepository?.let { apiRepo ->
+                try {
+                    ConsentStateStore.seedHistory(orgId, apiRepo.getConsentHistory(orgId))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // 이력 없이 상세만 보여준다
+                }
+            }
 
             // 스위치 토글 시 위험도 점수·등급·분석 정보가 즉시 재산출되고, 변경 기록도 함께 갱신된다.
             combine(
