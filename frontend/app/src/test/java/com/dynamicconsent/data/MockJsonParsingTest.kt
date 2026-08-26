@@ -29,8 +29,9 @@ class MockJsonParsingTest {
     fun `organizations json이 Organization 리스트로 파싱된다`() {
         val organizations: List<Organization> = json.decodeFromString(asset("organizations.json"))
 
-        assertEquals(3, organizations.size)
-        assertEquals(listOf("kakaotalk", "toss", "netflix"), organizations.map { it.id })
+        // 백엔드 company 테이블(V6 backfill 기준)의 5개 기업과 목록을 일치시킨다.
+        assertEquals(5, organizations.size)
+        assertEquals(listOf("kakaotalk", "toss", "naver", "baemin", "daangn"), organizations.map { it.id })
 
         val kakao = organizations.first()
         assertEquals("카카오톡", kakao.name)
@@ -44,7 +45,7 @@ class MockJsonParsingTest {
         val details: Map<String, OrganizationDetail> =
             json.decodeFromString(asset("organization_details.json"))
 
-        assertEquals(setOf("kakaotalk", "toss", "netflix"), details.keys)
+        assertEquals(setOf("kakaotalk", "toss", "naver", "baemin", "daangn"), details.keys)
 
         details.forEach { (id, detail) ->
             assertEquals(id, detail.organization.id)
@@ -96,5 +97,17 @@ class MockJsonParsingTest {
                 assertTrue("$id: 제공 목적 누락", provider.purpose.isNotBlank())
             }
         }
+    }
+
+    @Test
+    fun `모든 기관에 감시용 packageName이 있다`() {
+        val organizations: List<Organization> = json.decodeFromString(asset("organizations.json"))
+
+        // packageName이 없는 기업은 WatchedAppRegistry가 감시 대상에서 제외하므로,
+        // mock 5개 기업은 전부 앱 실행 감지가 가능해야 한다.
+        organizations.forEach { org ->
+            assertTrue("${org.id}: packageName 누락", !org.packageName.isNullOrBlank())
+        }
+        assertEquals(organizations.size, organizations.mapNotNull { it.packageName }.distinct().size)
     }
 }

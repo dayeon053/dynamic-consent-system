@@ -20,13 +20,33 @@
     "logoColor": 4278215935
   },
   {
-    "id": "netflix",
-    "packageName": "com.netflix.mediaclient",
-    "name": "넷플릭스",
-    "category": "기타",
-    "riskScore": 21.0,
-    "riskGrade": "MEDIUM",
+    "id": "naver",
+    "packageName": "com.nhn.android.search",
+    "name": "네이버",
+    "category": "포털",
+    "riskScore": 30.0,
+    "riskGrade": "HIGH",
     "logoText": "N",
-    "logoColor": 4293200148
+    "logoColor": 4278437722
+  },
+  {
+    "id": "baemin",
+    "packageName": "com.sampleapp",
+    "name": "배달의민족",
+    "category": "배달",
+    "riskScore": 23.0,
+    "riskGrade": "MEDIUM",
+    "logoText": "배민",
+    "logoColor": 4280992188
+  },
+  {
+    "id": "daangn",
+    "packageName": "com.towneers.www",
+    "name": "당근마켓",
+    "category": "중고거래",
+    "riskScore": 11.0,
+    "riskGrade": "LOW",
+    "logoText": "당근",
+    "logoColor": 4294930191
   }
 ]

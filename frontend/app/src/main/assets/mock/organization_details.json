@@ -16,55 +16,112 @@
           "id": 1,
           "title": "프로필정보 추가 수집 동의",
           "enabled": true,
-          "variableImpact": { "ds": 3, "es": 1, "tf": 1, "pc": 1.0, "ai": 1.0 }
+          "variableImpact": {
+            "ds": 3,
+            "es": 1,
+            "tf": 1,
+            "pc": 1.0,
+            "ai": 1.0
+          }
         },
         {
           "id": 2,
           "title": "이벤트 및 마케팅 활용 동의",
           "enabled": true,
-          "variableImpact": { "ds": 1, "es": 1, "tf": 1, "pc": 1.5, "ai": 1.0 }
+          "variableImpact": {
+            "ds": 1,
+            "es": 1,
+            "tf": 1,
+            "pc": 1.5,
+            "ai": 1.0
+          }
         },
         {
           "id": 3,
           "title": "위치정보 수집 및 이용 동의",
           "enabled": true,
-          "variableImpact": { "ds": 3, "es": 1, "tf": 3, "pc": 1.0, "ai": 1.0 }
+          "variableImpact": {
+            "ds": 3,
+            "es": 1,
+            "tf": 3,
+            "pc": 1.0,
+            "ai": 1.0
+          }
         },
         {
           "id": 4,
           "title": "맞춤형 광고를 위한 행태정보 수집 및 이용",
           "enabled": true,
-          "variableImpact": { "ds": 1, "es": 2, "tf": 1, "pc": 1.0, "ai": 1.5 }
+          "variableImpact": {
+            "ds": 1,
+            "es": 2,
+            "tf": 1,
+            "pc": 1.0,
+            "ai": 1.5
+          }
         },
         {
           "id": 5,
           "title": "카카오 계열사 정보 공유 동의",
           "enabled": true,
-          "variableImpact": { "ds": 1, "es": 2, "tf": 1, "pc": 1.0, "ai": 1.0 }
+          "variableImpact": {
+            "ds": 1,
+            "es": 2,
+            "tf": 1,
+            "pc": 1.0,
+            "ai": 1.0
+          }
         },
         {
           "id": 6,
           "title": "광고 파트너 제3자 제공 동의",
           "enabled": true,
-          "variableImpact": { "ds": 1, "es": 3, "tf": 1, "pc": 1.0, "ai": 1.0 }
+          "variableImpact": {
+            "ds": 1,
+            "es": 3,
+            "tf": 1,
+            "pc": 1.0,
+            "ai": 1.0
+          }
         },
         {
           "id": 7,
           "title": "서비스 개선을 위한 통계·분석 활용 동의",
           "enabled": true,
-          "variableImpact": { "ds": 1, "es": 1, "tf": 2, "pc": 1.0, "ai": 1.0 }
+          "variableImpact": {
+            "ds": 1,
+            "es": 1,
+            "tf": 2,
+            "pc": 1.0,
+            "ai": 1.0
+          }
         },
         {
           "id": 8,
           "title": "음성정보 수집 및 이용 동의",
           "enabled": true,
-          "variableImpact": { "ds": 3, "es": 1, "tf": 1, "pc": 1.0, "ai": 1.5 }
+          "variableImpact": {
+            "ds": 3,
+            "es": 1,
+            "tf": 1,
+            "pc": 1.0,
+            "ai": 1.5
+          }
         }
       ],
       "requiredConsents": [
-        { "id": 1, "title": "카카오계정 이용약관" },
-        { "id": 2, "title": "개인정보 수집·이용 동의" },
-        { "id": 3, "title": "위치정보 이용약관 동의" }
+        {
+          "id": 1,
+          "title": "카카오계정 이용약관"
+        },
+        {
+          "id": 2,
+          "title": "개인정보 수집·이용 동의"
+        },
+        {
+          "id": 3,
+          "title": "위치정보 이용약관 동의"
+        }
       ]
     },
     "riskAnalysis": {
@@ -72,21 +129,65 @@
       "riskGrade": "VERY_HIGH",
       "formula": "위험도 = 데이터민감도(3) + (노출범위(3) × 경과시간(3) × 목적명확성(1.5) × AI위험(1.5)) × 2 = 43.5",
       "factors": [
-        { "label": "데이터민감도", "value": "3", "description": "메시지, 프로필, 연락처, 위치정보 등 풍부한 개인 데이터를 수집합니다." },
-        { "label": "노출범위", "value": "3", "description": "카카오 계열사, 브랜드 파트너, 광고주 등에 광범위하게 공유됩니다." },
-        { "label": "경과시간", "value": "3", "description": "위치정보, 행태정보 등이 장기간 보관됩니다." },
-        { "label": "목적명확성", "value": "1.5", "description": "마케팅, 광고 등 목적이 포괄적으로 표현됩니다." },
-        { "label": "AI위험", "value": "1.5", "description": "맞춤형 광고를 위한 자동 분석 및 타겟팅이 이루어집니다." }
+        {
+          "label": "데이터민감도",
+          "value": "3",
+          "description": "메시지, 프로필, 연락처, 위치정보 등 풍부한 개인 데이터를 수집합니다."
+        },
+        {
+          "label": "노출범위",
+          "value": "3",
+          "description": "카카오 계열사, 브랜드 파트너, 광고주 등에 광범위하게 공유됩니다."
+        },
+        {
+          "label": "경과시간",
+          "value": "3",
+          "description": "위치정보, 행태정보 등이 장기간 보관됩니다."
+        },
+        {
+          "label": "목적명확성",
+          "value": "1.5",
+          "description": "마케팅, 광고 등 목적이 포괄적으로 표현됩니다."
+        },
+        {
+          "label": "AI위험",
+          "value": "1.5",
+          "description": "맞춤형 광고를 위한 자동 분석 및 타겟팅이 이루어집니다."
+        }
       ],
       "withdrawalEffects": [
-        { "consentTitle": "프로필정보 추가 수집 동의", "pointsReduced": "감소 없음" },
-        { "consentTitle": "이벤트 및 마케팅 활용 동의", "pointsReduced": "13.5점 감소" },
-        { "consentTitle": "위치정보 수집 및 이용 동의", "pointsReduced": "13.5점 감소" },
-        { "consentTitle": "맞춤형 광고를 위한 행태정보 수집 및 이용", "pointsReduced": "감소 없음" },
-        { "consentTitle": "카카오 계열사 정보 공유 동의", "pointsReduced": "감소 없음" },
-        { "consentTitle": "광고 파트너 제3자 제공 동의", "pointsReduced": "13.5점 감소" },
-        { "consentTitle": "서비스 개선을 위한 통계·분석 활용 동의", "pointsReduced": "감소 없음" },
-        { "consentTitle": "음성정보 수집 및 이용 동의", "pointsReduced": "감소 없음" }
+        {
+          "consentTitle": "프로필정보 추가 수집 동의",
+          "pointsReduced": "감소 없음"
+        },
+        {
+          "consentTitle": "이벤트 및 마케팅 활용 동의",
+          "pointsReduced": "13.5점 감소"
+        },
+        {
+          "consentTitle": "위치정보 수집 및 이용 동의",
+          "pointsReduced": "13.5점 감소"
+        },
+        {
+          "consentTitle": "맞춤형 광고를 위한 행태정보 수집 및 이용",
+          "pointsReduced": "감소 없음"
+        },
+        {
+          "consentTitle": "카카오 계열사 정보 공유 동의",
+          "pointsReduced": "감소 없음"
+        },
+        {
+          "consentTitle": "광고 파트너 제3자 제공 동의",
+          "pointsReduced": "13.5점 감소"
+        },
+        {
+          "consentTitle": "서비스 개선을 위한 통계·분석 활용 동의",
+          "pointsReduced": "감소 없음"
+        },
+        {
+          "consentTitle": "음성정보 수집 및 이용 동의",
+          "pointsReduced": "감소 없음"
+        }
       ],
       "maxEffect": {
         "currentScore": "43.5점",
@@ -140,31 +241,64 @@
           "id": 1,
           "title": "마케팅 정보 수신 동의",
           "enabled": true,
-          "variableImpact": { "ds": 1, "es": 1, "tf": 1, "pc": 1.5, "ai": 1.0 }
+          "variableImpact": {
+            "ds": 1,
+            "es": 1,
+            "tf": 1,
+            "pc": 1.5,
+            "ai": 1.0
+          }
         },
         {
           "id": 2,
           "title": "제휴사/그룹사 서비스 안내",
           "enabled": true,
-          "variableImpact": { "ds": 1, "es": 2, "tf": 1, "pc": 1.0, "ai": 1.0 }
+          "variableImpact": {
+            "ds": 1,
+            "es": 2,
+            "tf": 1,
+            "pc": 1.0,
+            "ai": 1.0
+          }
         },
         {
           "id": 3,
           "title": "신용정보 조회 및 활용 동의",
           "enabled": true,
-          "variableImpact": { "ds": 5, "es": 1, "tf": 3, "pc": 1.0, "ai": 1.0 }
+          "variableImpact": {
+            "ds": 5,
+            "es": 1,
+            "tf": 3,
+            "pc": 1.0,
+            "ai": 1.0
+          }
         },
         {
           "id": 4,
           "title": "AI 맞춤형 금융상품 추천 동의",
           "enabled": true,
-          "variableImpact": { "ds": 1, "es": 1, "tf": 2, "pc": 1.0, "ai": 1.5 }
+          "variableImpact": {
+            "ds": 1,
+            "es": 1,
+            "tf": 2,
+            "pc": 1.0,
+            "ai": 1.5
+          }
         }
       ],
       "requiredConsents": [
-        { "id": 1, "title": "서비스 이용약관" },
-        { "id": 2, "title": "개인정보 수집·이용 동의" },
-        { "id": 3, "title": "고유식별정보 처리 동의" }
+        {
+          "id": 1,
+          "title": "서비스 이용약관"
+        },
+        {
+          "id": 2,
+          "title": "개인정보 수집·이용 동의"
+        },
+        {
+          "id": 3,
+          "title": "고유식별정보 처리 동의"
+        }
       ]
     },
     "riskAnalysis": {
@@ -172,17 +306,49 @@
       "riskGrade": "HIGH",
       "formula": "위험도 = 데이터민감도(5) + (노출범위(2) × 경과시간(3) × 목적명확성(1.5) × AI위험(1.5)) × 2 = 32.0",
       "factors": [
-        { "label": "데이터민감도", "value": "5", "description": "금융 거래 정보, 신용 정보 등 고도로 민감한 고유식별정보입니다." },
-        { "label": "노출범위", "value": "2", "description": "토스 그룹사·제휴사에 제한적으로 공유됩니다." },
-        { "label": "경과시간", "value": "3", "description": "장기간 지속 수집됩니다." },
-        { "label": "목적명확성", "value": "1.5", "description": "\"금융서비스 안내\" 등 일부 포괄적 표현입니다." },
-        { "label": "AI위험", "value": "1.5", "description": "AI 신용평가, 맞춤형 금융상품 추천에 활용됩니다." }
+        {
+          "label": "데이터민감도",
+          "value": "5",
+          "description": "금융 거래 정보, 신용 정보 등 고도로 민감한 고유식별정보입니다."
+        },
+        {
+          "label": "노출범위",
+          "value": "2",
+          "description": "토스 그룹사·제휴사에 제한적으로 공유됩니다."
+        },
+        {
+          "label": "경과시간",
+          "value": "3",
+          "description": "장기간 지속 수집됩니다."
+        },
+        {
+          "label": "목적명확성",
+          "value": "1.5",
+          "description": "\"금융서비스 안내\" 등 일부 포괄적 표현입니다."
+        },
+        {
+          "label": "AI위험",
+          "value": "1.5",
+          "description": "AI 신용평가, 맞춤형 금융상품 추천에 활용됩니다."
+        }
       ],
       "withdrawalEffects": [
-        { "consentTitle": "마케팅 정보 수신 동의", "pointsReduced": "9점 감소" },
-        { "consentTitle": "제휴사/그룹사 서비스 안내", "pointsReduced": "13.5점 감소" },
-        { "consentTitle": "신용정보 조회 및 활용 동의", "pointsReduced": "13점 감소" },
-        { "consentTitle": "AI 맞춤형 금융상품 추천 동의", "pointsReduced": "9점 감소" }
+        {
+          "consentTitle": "마케팅 정보 수신 동의",
+          "pointsReduced": "9점 감소"
+        },
+        {
+          "consentTitle": "제휴사/그룹사 서비스 안내",
+          "pointsReduced": "13.5점 감소"
+        },
+        {
+          "consentTitle": "신용정보 조회 및 활용 동의",
+          "pointsReduced": "13점 감소"
+        },
+        {
+          "consentTitle": "AI 맞춤형 금융상품 추천 동의",
+          "pointsReduced": "9점 감소"
+        }
       ],
       "maxEffect": {
         "currentScore": "32.0점",
@@ -213,86 +379,426 @@
       }
     ]
   },
-  "netflix": {
+  "naver": {
     "organization": {
-      "id": "netflix",
-      "packageName": "com.netflix.mediaclient",
-      "name": "넷플릭스",
-      "category": "기타",
-      "riskScore": 21.0,
-      "riskGrade": "MEDIUM",
+      "id": "naver",
+      "packageName": "com.nhn.android.search",
+      "name": "네이버",
+      "category": "포털",
+      "riskScore": 30.0,
+      "riskGrade": "HIGH",
       "logoText": "N",
-      "logoColor": 4293200148
+      "logoColor": 4278437722
     },
     "consentDetail": {
       "optionalConsents": [
         {
           "id": 1,
-          "title": "마케팅 정보 수신 동의",
+          "title": "검색 기록 기반 맞춤 광고",
           "enabled": true,
-          "variableImpact": { "ds": 1, "es": 2, "tf": 1, "pc": 1.0, "ai": 1.0 }
+          "variableImpact": {
+            "ds": 3,
+            "es": 3,
+            "tf": 2,
+            "pc": 1.5,
+            "ai": 1.0
+          }
         },
         {
           "id": 2,
-          "title": "콘텐츠 취향 맞춤 정보 제공",
+          "title": "위치 기반 서비스 이용",
           "enabled": true,
-          "variableImpact": { "ds": 3, "es": 1, "tf": 3, "pc": 1.0, "ai": 1.5 }
+          "variableImpact": {
+            "ds": 3,
+            "es": 2,
+            "tf": 3,
+            "pc": 1.0,
+            "ai": 1.0
+          }
         },
         {
           "id": 3,
-          "title": "시청 기록 기반 통계 활용 동의",
+          "title": "마케팅 정보 수신 동의",
           "enabled": true,
-          "variableImpact": { "ds": 1, "es": 1, "tf": 2, "pc": 1.0, "ai": 1.0 }
+          "variableImpact": {
+            "ds": 1,
+            "es": 2,
+            "tf": 1,
+            "pc": 1.0,
+            "ai": 1.0
+          }
         }
       ],
       "requiredConsents": [
-        { "id": 1, "title": "이용 약관 동의" },
-        { "id": 2, "title": "개인정보 수집 및 이용 동의" },
-        { "id": 3, "title": "국외 이전 동의" }
+        {
+          "id": 1,
+          "title": "이용 약관 동의"
+        },
+        {
+          "id": 2,
+          "title": "개인정보 수집 및 이용 동의"
+        },
+        {
+          "id": 3,
+          "title": "고유식별정보 처리 동의"
+        }
       ]
     },
     "riskAnalysis": {
-      "riskScore": 21.0,
-      "riskGrade": "MEDIUM",
-      "formula": "위험도 = 데이터민감도(3) + (노출범위(2) × 경과시간(3) × 목적명확성(1) × AI위험(1.5)) × 2 = 21.0",
+      "riskScore": 30.0,
+      "riskGrade": "HIGH",
+      "formula": "위험도 = 데이터민감도(3) + (노출범위(3) × 경과시간(3) × 목적명확성(1.5) × AI위험(1)) × 2 = 30.0",
       "factors": [
-        { "label": "데이터민감도", "value": "3", "description": "시청 기록은 보호받아야 할 개인정보입니다." },
-        { "label": "노출범위", "value": "2", "description": "국외 이전되며, 제한적으로 공유됩니다." },
-        { "label": "경과시간", "value": "3", "description": "장기간 시청 기록이 보관됩니다." },
-        { "label": "목적명확성", "value": "1", "description": "\"콘텐츠 추천\", \"서비스 제공\" 목적이 명확합니다." },
-        { "label": "AI위험", "value": "1.5", "description": "콘텐츠 추천 알고리즘에 활용됩니다." }
+        {
+          "label": "데이터민감도",
+          "value": "3",
+          "description": "검색어와 위치는 관심사·생활 반경을 그대로 드러냅니다."
+        },
+        {
+          "label": "노출범위",
+          "value": "3",
+          "description": "광고주·계열사 등 다수에 공유됩니다."
+        },
+        {
+          "label": "경과시간",
+          "value": "3",
+          "description": "이용 기록이 장기간 축적됩니다."
+        },
+        {
+          "label": "목적명확성",
+          "value": "1.5",
+          "description": "\"서비스 개선\" 등 포괄적 표현이 포함돼 있습니다."
+        },
+        {
+          "label": "AI위험",
+          "value": "1",
+          "description": "추천·광고 모델 학습에 활용됩니다."
+        }
       ],
       "withdrawalEffects": [
-        { "consentTitle": "마케팅 정보 수신 동의", "pointsReduced": "9점 감소" },
-        { "consentTitle": "콘텐츠 취향 맞춤 정보 제공", "pointsReduced": "12점 감소" },
-        { "consentTitle": "시청 기록 기반 통계 활용 동의", "pointsReduced": "감소 없음" }
+        {
+          "consentTitle": "검색 기록 기반 맞춤 광고",
+          "pointsReduced": "15점 감소"
+        },
+        {
+          "consentTitle": "위치 기반 서비스 이용",
+          "pointsReduced": "9점 감소"
+        },
+        {
+          "consentTitle": "마케팅 정보 수신 동의",
+          "pointsReduced": "감소 없음"
+        }
       ],
       "maxEffect": {
-        "currentScore": "21.0점",
-        "currentGrade": "MEDIUM",
+        "currentScore": "30.0점",
+        "currentGrade": "HIGH",
         "afterScore": "3.0점",
         "afterGrade": "VERY_LOW",
-        "totalReduction": "최대 18점 감소"
+        "totalReduction": "최대 27점 감소"
       }
     },
     "companyInfo": {
-      "serviceName": "넷플릭스 Netflix",
-      "legalName": "넷플릭스서비시스코리아 유한회사",
-      "privacyCertification": "ISO 27001",
-      "privacyPolicyUrl": "https://help.netflix.com/legal/privacy"
+      "serviceName": "네이버 NAVER",
+      "legalName": "네이버 주식회사",
+      "privacyCertification": "ISMS-P, ISO 27001, ISO 27701",
+      "privacyPolicyUrl": "https://policy.naver.com/policy/privacy.html"
     },
     "thirdPartyProviders": [
       {
-        "name": "콘텐츠 파트너사",
-        "purpose": "시청 통계 분석 및 콘텐츠 기획",
-        "sharedItems": "비식별 시청 기록",
-        "retentionPeriod": "계약 종료 시까지"
+        "name": "광고주 및 광고 대행사",
+        "purpose": "맞춤형 광고 제공",
+        "sharedItems": "비식별 관심사 정보, 광고 식별자",
+        "retentionPeriod": "동의 철회 시까지"
       },
       {
-        "name": "클라우드 서비스 제공자 (AWS)",
-        "purpose": "서비스 운영 인프라 (국외 이전)",
-        "sharedItems": "계정 정보, 시청 데이터",
-        "retentionPeriod": "서비스 이용 기간"
+        "name": "네이버 계열사",
+        "purpose": "통합 회원 서비스 운영",
+        "sharedItems": "계정 정보, 서비스 이용 기록",
+        "retentionPeriod": "회원 탈퇴 시까지"
+      }
+    ]
+  },
+  "baemin": {
+    "organization": {
+      "id": "baemin",
+      "packageName": "com.sampleapp",
+      "name": "배달의민족",
+      "category": "배달",
+      "riskScore": 23.0,
+      "riskGrade": "MEDIUM",
+      "logoText": "배민",
+      "logoColor": 4280992188
+    },
+    "consentDetail": {
+      "optionalConsents": [
+        {
+          "id": 1,
+          "title": "주문 내역 기반 맞춤 추천",
+          "enabled": true,
+          "variableImpact": {
+            "ds": 5,
+            "es": 2,
+            "tf": 2,
+            "pc": 1.0,
+            "ai": 1.5
+          }
+        },
+        {
+          "id": 2,
+          "title": "배달 주소 기반 지역 광고",
+          "enabled": true,
+          "variableImpact": {
+            "ds": 5,
+            "es": 2,
+            "tf": 3,
+            "pc": 1.0,
+            "ai": 1.0
+          }
+        },
+        {
+          "id": 3,
+          "title": "이벤트·혜택 알림 수신",
+          "enabled": true,
+          "variableImpact": {
+            "ds": 1,
+            "es": 1,
+            "tf": 1,
+            "pc": 1.0,
+            "ai": 1.0
+          }
+        }
+      ],
+      "requiredConsents": [
+        {
+          "id": 1,
+          "title": "이용 약관 동의"
+        },
+        {
+          "id": 2,
+          "title": "개인정보 수집 및 이용 동의"
+        },
+        {
+          "id": 3,
+          "title": "결제 정보 처리 동의"
+        }
+      ]
+    },
+    "riskAnalysis": {
+      "riskScore": 23.0,
+      "riskGrade": "MEDIUM",
+      "formula": "위험도 = 데이터민감도(5) + (노출범위(2) × 경과시간(3) × 목적명확성(1) × AI위험(1.5)) × 2 = 23.0",
+      "factors": [
+        {
+          "label": "데이터민감도",
+          "value": "5",
+          "description": "상세 배달 주소는 거주지를 특정할 수 있는 정보입니다."
+        },
+        {
+          "label": "노출범위",
+          "value": "2",
+          "description": "입점 음식점·배달 대행사에 제공됩니다."
+        },
+        {
+          "label": "경과시간",
+          "value": "3",
+          "description": "주문 이력이 장기간 보관됩니다."
+        },
+        {
+          "label": "목적명확성",
+          "value": "1",
+          "description": "\"주문 처리\", \"배달 수행\" 목적이 명확합니다."
+        },
+        {
+          "label": "AI위험",
+          "value": "1.5",
+          "description": "맞춤 추천 알고리즘에 활용됩니다."
+        }
+      ],
+      "withdrawalEffects": [
+        {
+          "consentTitle": "주문 내역 기반 맞춤 추천",
+          "pointsReduced": "6점 감소"
+        },
+        {
+          "consentTitle": "배달 주소 기반 지역 광고",
+          "pointsReduced": "6점 감소"
+        },
+        {
+          "consentTitle": "이벤트·혜택 알림 수신",
+          "pointsReduced": "감소 없음"
+        }
+      ],
+      "maxEffect": {
+        "currentScore": "23.0점",
+        "currentGrade": "MEDIUM",
+        "afterScore": "3.0점",
+        "afterGrade": "VERY_LOW",
+        "totalReduction": "최대 20점 감소"
+      }
+    },
+    "companyInfo": {
+      "serviceName": "배달의민족 Baemin",
+      "legalName": "주식회사 우아한형제들",
+      "privacyCertification": "ISMS-P",
+      "privacyPolicyUrl": "https://www.baemin.com/policy/privacy"
+    },
+    "thirdPartyProviders": [
+      {
+        "name": "입점 음식점",
+        "purpose": "주문 접수 및 배달 수행",
+        "sharedItems": "주문자명, 연락처, 배달 주소",
+        "retentionPeriod": "배달 완료 후 즉시 파기"
+      },
+      {
+        "name": "배달 대행사",
+        "purpose": "배달 업무 수행",
+        "sharedItems": "수령인 정보, 배달 주소",
+        "retentionPeriod": "배달 완료 후 즉시 파기"
+      },
+      {
+        "name": "결제 대행사(PG)",
+        "purpose": "결제 처리 및 정산",
+        "sharedItems": "결제 수단 정보",
+        "retentionPeriod": "전자상거래법에 따라 5년"
+      }
+    ]
+  },
+  "daangn": {
+    "organization": {
+      "id": "daangn",
+      "packageName": "com.towneers.www",
+      "name": "당근마켓",
+      "category": "중고거래",
+      "riskScore": 11.0,
+      "riskGrade": "LOW",
+      "logoText": "당근",
+      "logoColor": 4294930191
+    },
+    "consentDetail": {
+      "optionalConsents": [
+        {
+          "id": 1,
+          "title": "동네 인증 위치정보 활용",
+          "enabled": true,
+          "variableImpact": {
+            "ds": 3,
+            "es": 2,
+            "tf": 2,
+            "pc": 1.0,
+            "ai": 1.0
+          }
+        },
+        {
+          "id": 2,
+          "title": "관심 카테고리 기반 추천",
+          "enabled": true,
+          "variableImpact": {
+            "ds": 1,
+            "es": 1,
+            "tf": 2,
+            "pc": 1.0,
+            "ai": 1.0
+          }
+        },
+        {
+          "id": 3,
+          "title": "마케팅 정보 수신 동의",
+          "enabled": true,
+          "variableImpact": {
+            "ds": 1,
+            "es": 1,
+            "tf": 1,
+            "pc": 1.0,
+            "ai": 1.0
+          }
+        }
+      ],
+      "requiredConsents": [
+        {
+          "id": 1,
+          "title": "이용 약관 동의"
+        },
+        {
+          "id": 2,
+          "title": "개인정보 수집 및 이용 동의"
+        },
+        {
+          "id": 3,
+          "title": "위치기반서비스 이용약관 동의"
+        }
+      ]
+    },
+    "riskAnalysis": {
+      "riskScore": 11.0,
+      "riskGrade": "LOW",
+      "formula": "위험도 = 데이터민감도(3) + (노출범위(2) × 경과시간(2) × 목적명확성(1) × AI위험(1)) × 2 = 11.0",
+      "factors": [
+        {
+          "label": "데이터민감도",
+          "value": "3",
+          "description": "동네 인증 위치는 생활 반경을 드러냅니다."
+        },
+        {
+          "label": "노출범위",
+          "value": "2",
+          "description": "거래 상대방과 일부 파트너에 제한적으로 공유됩니다."
+        },
+        {
+          "label": "경과시간",
+          "value": "2",
+          "description": "거래·조회 이력이 일정 기간 보관됩니다."
+        },
+        {
+          "label": "목적명확성",
+          "value": "1",
+          "description": "\"동네 인증\", \"거래 중개\" 목적이 명확합니다."
+        },
+        {
+          "label": "AI위험",
+          "value": "1",
+          "description": "추천 알고리즘 활용 범위가 제한적입니다."
+        }
+      ],
+      "withdrawalEffects": [
+        {
+          "consentTitle": "동네 인증 위치정보 활용",
+          "pointsReduced": "6점 감소"
+        },
+        {
+          "consentTitle": "관심 카테고리 기반 추천",
+          "pointsReduced": "감소 없음"
+        },
+        {
+          "consentTitle": "마케팅 정보 수신 동의",
+          "pointsReduced": "감소 없음"
+        }
+      ],
+      "maxEffect": {
+        "currentScore": "11.0점",
+        "currentGrade": "LOW",
+        "afterScore": "3.0점",
+        "afterGrade": "VERY_LOW",
+        "totalReduction": "최대 8점 감소"
+      }
+    },
+    "companyInfo": {
+      "serviceName": "당근 Daangn",
+      "legalName": "(주)당근마켓",
+      "privacyCertification": "ISMS",
+      "privacyPolicyUrl": "https://www.daangn.com/policy/privacy"
+    },
+    "thirdPartyProviders": [
+      {
+        "name": "당근페이",
+        "purpose": "안전결제 및 정산",
+        "sharedItems": "거래 정보, 결제 수단 정보",
+        "retentionPeriod": "전자상거래법에 따라 5년"
+      },
+      {
+        "name": "광고 파트너사",
+        "purpose": "지역 기반 광고 제공",
+        "sharedItems": "비식별 지역 정보, 광고 식별자",
+        "retentionPeriod": "동의 철회 시까지"
       }
     ]
   }
