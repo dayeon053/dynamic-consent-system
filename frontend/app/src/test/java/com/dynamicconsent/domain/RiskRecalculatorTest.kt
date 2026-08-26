@@ -109,7 +109,7 @@ class RiskRecalculatorTest {
     fun `카카오 동의 철회로 점수가 떨어지면 위험도 순위가 재정렬된다`() {
         val base = details.values.map { RiskRecalculator.recalculate(it, enabledIdsOf(it)) }
         val baseOrder = base.sortedByDescending { it.organization.riskScore }.map { it.organization.id }
-        assertEquals(listOf("kakaotalk", "toss", "netflix"), baseOrder)
+        assertEquals(listOf("kakaotalk", "toss", "naver", "baemin", "daangn"), baseOrder)
 
         // 카카오만 대부분 철회 → 15.0점으로 하락
         val kakao = details.getValue("kakaotalk")
@@ -122,6 +122,6 @@ class RiskRecalculatorTest {
         }
         val adjustedOrder = adjusted.sortedByDescending { it.organization.riskScore }.map { it.organization.id }
 
-        assertEquals(listOf("toss", "netflix", "kakaotalk"), adjustedOrder)
+        assertEquals(listOf("toss", "naver", "baemin", "kakaotalk", "daangn"), adjustedOrder)
     }
 }
