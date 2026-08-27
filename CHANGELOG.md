@@ -1,5 +1,63 @@
 # CHANGELOG
 
+## 2026-08-27 — company 테이블 mojibake(문자 깨짐) 복구 (V10 마이그레이션)
+
+### [팀 공지] V10 마이그레이션 적용해주세요
+
+로컬 DB의 `company` 테이블에 저장된 회사 이름(카카오/네이버/배달의민족/토스/당근마켓)이
+깨진 문자(예: `ì¹´ì¹´ì˜¤`)로 저장되어 있는 경우가 발견됐습니다(가현님 로컬 DB에서 확인).
+화면 표시만 깨지는 문제가 아니라 **실제로 DB에 깨진 바이트가 저장된 상태**입니다.
+
+**적용 방법**: 저장소 최신 pull 후,
+`backend/consentradar/src/main/resources/sql/migration/V10__fix_company_name_mojibake.sql`을
+각자 로컬 MySQL `consentradar` DB에 그대로 실행해주세요.
+
+```
+mysql -u root -p --default-character-set=utf8mb4 consentradar < V10__fix_company_name_mojibake.sql
+```
+
+(반드시 `--default-character-set=utf8mb4`로 접속 — 다른 charset으로 실행하면 오히려
+다시 깨질 수 있습니다.)
+
+**안전성**: `package_name`(영문 패키지 식별자)으로 대상을 찾아 값을 세팅하는 방식이라,
+이미 정상인 로컬 DB에서 실행해도 같은 값을 다시 쓸 뿐 문제없습니다. 여러 번 실행해도
+안전합니다(idempotent). 적용 후 `company` 테이블에서 5개 회사 이름이 정상적으로
+보이는지만 확인해주시면 됩니다. 자동으로 적용되는 마이그레이션이 아니라(이 프로젝트는
+Flyway/Liquibase 미사용, `ddl-auto: update`는 컬럼 추가/변경만 하고 데이터값은 손대지
+않음) 각자 수동으로 실행해야 반영됩니다.
+
+### 원인 추정 — 왜 이런 일이 생겼는가 (확정 아님, V6 재발 방지 참고용)
+
+`company_name`/`legal_name`/`category`는 V6 마이그레이션에서 처음 채워졌다. 이번
+조사에서 로컬 MySQL 클라이언트의 커넥션 charset을 일부러 `latin1`로 잘못 태깅한 뒤
+같은 한글 문자열을 UPDATE해보니, 리뷰어 로컬 DB에서 관찰된 것과 같은 패턴의 mojibake
+(`카카오` → `ì¹´ì¹´ì˜¤`)가 실제로 재현됐다. 이로 미루어, V6 스크립트를 각자 로컬에서 수동
+적용할 때 `utf8mb4`가 아닌 클라이언트 세션 charset(예: `mysql` CLI 기본 latin1, 또는
+GUI 툴의 기본 접속 설정)으로 실행한 환경에서만 이 문제가 발생했을 가능성이 유력하다 —
+왜 어떤 사람 로컬 DB는 멀쩡하고(우리 팀 일부) 어떤 사람 로컬 DB는 깨졌는지(가현님)를
+설명하는 유일한 가설이기도 하다. 다만 실제 V6 실행 당시의 클라이언트 설정을 사후에
+확인할 방법이 없어 **원인은 확정하지 못했다.**
+
+이 프로젝트는 Flyway/Liquibase 없이 `sql/migration/` 아래 SQL 스크립트를 각자 로컬에서
+수동 실행하는 구조라(V9의 배경 설명 참고) 이런 클라이언트 환경 차이가 팀원마다 다른
+결과로 이어지기 쉽다. **앞으로 한글 등 non-ASCII 데이터를 INSERT/UPDATE하는 마이그레이션
+SQL을 작성/공유할 때는, 실행 안내문에 `--default-character-set=utf8mb4` 접속 옵션을
+명시하는 걸 기본으로 한다.**
+
+참고로 2026-08-26 점검 때는 "DB 한글이 깨졌다"는 의심이 있었지만 그때는 실제로는
+클라이언트 표시 문제였을 뿐 DB 데이터 자체는 정상이었다(아래 2026-08-26 항목 5번 참고).
+이번 건은 그와 달리 **DB에 실제로 깨진 바이트가 저장된, 진짜 데이터 손상 사례**라는
+점에서 구분된다.
+
+### 조치
+
+- `V10__fix_company_name_mojibake.sql` 추가 — `package_name`(ASCII, UNIQUE 제약)으로
+  대상 row를 매칭해 5개 기업의 `company_name`/`legal_name`/`category`를 정상값으로
+  UPDATE. `company_name` 자체가 깨져 있을 수 있어 그 컬럼으로는 매칭하지 않았다.
+- 로컬 MySQL에서 실제로 mojibake를 재현한 뒤 이 스크립트로 정상 복원되는 것,
+  그리고 이미 정상인 데이터에 재실행해도 값이 그대로 유지되는 것(idempotent) 둘 다
+  실측 검증함.
+
 ## 2026-08-26 — 개발 마감 최종 점검 (fix/final-audit-a0-a5)
 
 ### 배경
