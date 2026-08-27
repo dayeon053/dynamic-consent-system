@@ -14,5 +14,26 @@
 --
 -- DEFAULT TRUE(=1)로 추가하므로 기존 row도 전부 즉시 active=true로 backfill된다 —
 -- V6와 달리 nullable 단계를 거칠 필요 없다.
-ALTER TABLE consent_item
-    ADD COLUMN is_active BIT(1) NOT NULL DEFAULT 1;
+--
+-- [2026-08-27 수정] 재실행 가능(idempotent)하도록 변경 — 이 컬럼은 실제로는 이 스크립트가
+-- 아니라 ConsentItem.java의 @Column(columnDefinition="BIT(1) DEFAULT 1") + ddl-auto:update가
+-- 만든다(이 프로젝트는 Flyway/Liquibase 미사용, 위 1번째 줄 참고). 즉 로컬 DB에 이미
+-- is_active가 존재하는 상태에서 이 스크립트를 참고용으로 재실행해도(예: 신규 팀원이
+-- 마이그레이션 이력을 훑어보다가 실수로 재실행) 에러 없이 안전하게 넘어가야 한다.
+-- "ADD COLUMN IF NOT EXISTS"는 MariaDB 전용 확장이라 MySQL(Oracle, 이 프로젝트가 쓰는
+-- mysql:8.0)에서는 그대로 문법 오류(1064)가 난다는 걸 직접 확인했다 — 그래서 MySQL에서
+-- 이식 가능한 information_schema 조건부 + 동적 SQL(PREPARE/EXECUTE) 패턴을 쓴다.
+SET @column_exists = (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'consent_item'
+      AND COLUMN_NAME = 'is_active'
+);
+
+SET @ddl = IF(@column_exists = 0,
+    'ALTER TABLE consent_item ADD COLUMN is_active BIT(1) NOT NULL DEFAULT 1',
+    'SELECT 1');
+
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;

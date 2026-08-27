@@ -55,7 +55,7 @@ public class ConsentItem {
      * 끊기기 때문이다. 위험도 계산(PersonalRiskCalculator)과 동의 항목 목록 API는 반드시
      * active=true인 항목만 조회해야 한다.
      */
-    @Column(name = "is_active", nullable = false)
+    @Column(name = "is_active", nullable = false, columnDefinition = "BIT(1) DEFAULT 1")
     private boolean active = true;
 
     @Column(updatable = false)
