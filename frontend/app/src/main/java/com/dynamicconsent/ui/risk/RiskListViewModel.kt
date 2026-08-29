@@ -2,7 +2,10 @@ package com.dynamicconsent.ui.risk
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.dynamicconsent.data.model.OrganizationDetail
 import com.dynamicconsent.data.repository.ConsentStateStore
 import com.dynamicconsent.data.repository.OrganizationRepository
@@ -18,6 +21,8 @@ import kotlinx.coroutines.launch
 
 class RiskListViewModel @JvmOverloads constructor(
     application: Application,
+    /** null이면 전체 목록, 값이 있으면 그 카테고리만 (홈의 카테고리 바로가기) */
+    private val category: String? = null,
     private val repository: OrganizationRepository =
         RepositoryProvider.organizationRepository(application.assets),
 ) : AndroidViewModel(application) {
@@ -78,10 +83,13 @@ class RiskListViewModel @JvmOverloads constructor(
                 }
                 val sortedOrganizations = recalculatedDetails.values
                     .map { it.organization }
+                    .filter { category == null || it.category == category }
                     .sortedByDescending { it.riskScore }
 
                 _uiState.update { state ->
+                    // 필터 결과에 없는 기관이 선택돼 있으면(카테고리 진입 등) 첫 항목으로 옮긴다.
                     val selectedId = state.selectedOrganizationId
+                        ?.takeIf { id -> sortedOrganizations.any { it.id == id } }
                         ?: sortedOrganizations.firstOrNull()?.id
                     state.copy(
                         isLoading = false,
@@ -90,8 +98,20 @@ class RiskListViewModel @JvmOverloads constructor(
                         selectedOrganizationId = selectedId,
                         selectedDetail = selectedId?.let { recalculatedDetails[it] },
                         isFallback = isFallback,
+                        category = category,
                     )
                 }
+            }
+        }
+    }
+
+    companion object {
+        /** 카테고리를 생성자에 넘겨야 해서 기본 팩토리 대신 이걸 쓴다. */
+        fun factory(category: String?): ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
+                    as Application
+                RiskListViewModel(application, category)
             }
         }
     }

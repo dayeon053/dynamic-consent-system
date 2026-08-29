@@ -62,10 +62,14 @@ private val OfflineBannerText = Color(0xFF8A5300)
 fun RiskListScreen(
     onBackClick: () -> Unit,
     onOrgDetailClick: (orgId: String) -> Unit,
-    onMonitorClick: () -> Unit = {},
+    category: String? = null,
     onNoticeClick: () -> Unit = {},
     modifier: Modifier = Modifier,
-    viewModel: RiskListViewModel = viewModel(),
+    viewModel: RiskListViewModel = viewModel(
+        // 카테고리마다 다른 인스턴스를 쓰도록 key를 준다 (같은 화면을 필터만 바꿔 재사용하지 않게).
+        key = "risk_list_${category.orEmpty()}",
+        factory = RiskListViewModel.factory(category),
+    ),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -73,7 +77,13 @@ fun RiskListScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("위험기관리스트", fontWeight = FontWeight.Bold, color = TextPrimary) },
+                title = {
+                    Text(
+                        text = uiState.category?.let { "위험기관리스트 · $it" } ?: "위험기관리스트",
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
@@ -89,10 +99,6 @@ fun RiskListScreen(
                             contentDescription = "공지사항",
                             tint = BrandGreen,
                         )
-                    }
-                    // 벨 아이콘은 재은님의 감시 테스트 화면으로 간다 (기존 동작 유지)
-                    IconButton(onClick = onMonitorClick) {
-                        Icon(Icons.Default.Notifications, contentDescription = "알림", tint = BrandGreen)
                     }
                 },
             )
@@ -121,7 +127,7 @@ fun RiskListScreen(
         // 앱이 고장난 것으로 오해하므로 빈 상태로 따로 안내한다.
         if (uiState.organizations.isEmpty()) {
             EmptyState(
-                message = "표시할 기업이 없습니다.",
+                message = uiState.category?.let { "'$it' 기업이 없습니다." } ?: "표시할 기업이 없습니다.",
                 description = "등록된 기업이 아직 없거나 분석이 끝나지 않았습니다.",
                 onAction = viewModel::retry,
                 modifier = Modifier.padding(innerPadding),
