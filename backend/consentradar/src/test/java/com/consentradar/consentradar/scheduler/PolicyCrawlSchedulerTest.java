@@ -96,7 +96,7 @@ class PolicyCrawlSchedulerTest {
         when(companyRepository.findById(company.getCompanyId())).thenReturn(Optional.of(company));
         CompanyCrawlResult expected =
                 new CompanyCrawlResult(company.getCompanyId(), company.getCompanyName(), true, true);
-        when(policyCrawlProcessor.processCompany(company)).thenReturn(expected);
+        when(policyCrawlProcessor.processCompany(company, false)).thenReturn(expected);
 
         CompanyCrawlResult result = newScheduler().runForCompany(company.getCompanyId());
 
@@ -111,7 +111,26 @@ class PolicyCrawlSchedulerTest {
 
         PolicyCrawlScheduler scheduler = newScheduler();
         assertThrows(IllegalArgumentException.class, () -> scheduler.runForCompany(999L));
-        verify(policyCrawlProcessor, never()).processCompany(any());
+        verify(policyCrawlProcessor, never()).processCompany(any(), org.mockito.ArgumentMatchers.anyBoolean());
+    }
+
+    /**
+     * force=true 관리자 강제 재분석 옵션 — POST /admin/crawl/{id}?force=true가 여기까지
+     * 그대로 전달되는지 검증한다.
+     */
+    @Test
+    void runForCompanyWithForce_passesForceFlagThrough_toProcessor() {
+        Company company = createCompanies(1).get(0);
+        when(companyRepository.findById(company.getCompanyId())).thenReturn(Optional.of(company));
+        CompanyCrawlResult expected =
+                new CompanyCrawlResult(company.getCompanyId(), company.getCompanyName(), false, true);
+        when(policyCrawlProcessor.processCompany(company, true)).thenReturn(expected);
+
+        CompanyCrawlResult result = newScheduler().runForCompany(company.getCompanyId(), true);
+
+        assertFalse(result.changed());
+        assertTrue(result.riskAnalysisTriggered(), "force=true면 changed=false여도 재분석이 실행됐다는 결과가 와야 한다");
+        verify(policyCrawlProcessor).processCompany(company, true);
     }
 
     private List<Company> createCompanies(int count) {

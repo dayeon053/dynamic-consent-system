@@ -130,8 +130,10 @@ public class RiskPipelineService {
         System.out.println("[Pipeline] 5단계: 위험도 산출 시작");
         List<RiskScore> savedScores = new ArrayList<>();
         List<com.dynamicconsent.model.RiskInput> riskInputs = new ArrayList<>();
+        java.util.Set<String> matchedItemNames = new java.util.HashSet<>();
 
         for (ConsentItemAnalysis item : llmResponse.getConsentItems()) {
+            matchedItemNames.add(item.getItemName());
             com.dynamicconsent.model.RiskInput riskInput = item.toRiskInput();
             riskInputs.add(riskInput);
             RiskResult result = RiskCalculator.calculate(riskInput);
@@ -143,8 +145,6 @@ public class RiskPipelineService {
             // ConsentItem upsert: itemName 기준으로 기존 항목이면 UserConsentCheck를 유지한 채
             // 점수/타입만 갱신하고, 없으면 새로 만든다 (ConsentItemUpsertService, DB unique
             // 제약(company_id, item_name)으로 동시 요청에서도 중복 insert가 나지 않는다).
-            // TODO(다연 논의 필요): 이번 크롤링 결과에 더 이상 나타나지 않는 예전 ConsentItem을
-            // 삭제할지, 만료 플래그로 남길지는 범위 밖 — 현재는 그대로 유지된다.
             consentItemUpsertService.upsert(
                     company,
                     item.getItemName(),
@@ -168,6 +168,11 @@ public class RiskPipelineService {
         }
 
         System.out.println("[Pipeline] 항목별 RiskScore 저장 완료: " + savedScores.size() + "건");
+
+        // 5-1. 이번 크롤링 결과에 더 이상 나타나지 않는 기존 항목은 소프트 삭제(active=false)
+        // 한다 — UserConsentCheck/UserConsentHistory가 참조 중일 수 있어 하드 삭제하지 않는다.
+        consentItemUpsertService.deactivateMissing(company, matchedItemNames);
+        System.out.println("[Pipeline] 5-1단계: 이번 결과에 없는 예전 항목 소프트 삭제 완료");
 
         // 6. 기업 대표 위험도 산출(최고 점수) + RiskScore 저장 (isRepresentative=true)
         // TODO(2026-07-26, 다연 확인 필요): 개인 맞춤 위험도(PersonalRiskCalculator.calculate)는

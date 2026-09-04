@@ -23,7 +23,7 @@ class AdminCrawlControllerTest {
 
     @Test
     void triggerCrawl_returnsOk_whenCompanyProcessedSuccessfully() throws Exception {
-        when(policyCrawlScheduler.runForCompany(1L))
+        when(policyCrawlScheduler.runForCompany(1L, false))
                 .thenReturn(new CompanyCrawlResult(1L, "카카오", true, true));
 
         mockMvc.perform(post("/admin/crawl/1"))
@@ -35,9 +35,32 @@ class AdminCrawlControllerTest {
                 .andExpect(jsonPath("$.success").value(true));
     }
 
+    /** force=true 쿼리 파라미터가 PolicyCrawlScheduler.runForCompany(id, force)까지 그대로 전달돼야 한다. */
+    @Test
+    void triggerCrawl_passesForceTrue_whenForceQueryParamGiven() throws Exception {
+        when(policyCrawlScheduler.runForCompany(1L, true))
+                .thenReturn(new CompanyCrawlResult(1L, "카카오", false, true));
+
+        mockMvc.perform(post("/admin/crawl/1?force=true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.changed").value(false))
+                .andExpect(jsonPath("$.riskAnalysisTriggered").value(true));
+    }
+
+    /** force 파라미터가 없으면 기본값 false로 호출돼야 한다(기존 동작 그대로). */
+    @Test
+    void triggerCrawl_defaultsForceToFalse_whenForceQueryParamOmitted() throws Exception {
+        when(policyCrawlScheduler.runForCompany(1L, false))
+                .thenReturn(new CompanyCrawlResult(1L, "카카오", false, false));
+
+        mockMvc.perform(post("/admin/crawl/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.riskAnalysisTriggered").value(false));
+    }
+
     @Test
     void triggerCrawl_returnsNotFound_whenCompanyDoesNotExist() throws Exception {
-        when(policyCrawlScheduler.runForCompany(999L))
+        when(policyCrawlScheduler.runForCompany(999L, false))
                 .thenThrow(new IllegalArgumentException("존재하지 않는 companyId: 999"));
 
         mockMvc.perform(post("/admin/crawl/999"))
@@ -47,7 +70,7 @@ class AdminCrawlControllerTest {
 
     @Test
     void triggerCrawl_returnsInternalServerError_whenCrawlFails() throws Exception {
-        when(policyCrawlScheduler.runForCompany(1L))
+        when(policyCrawlScheduler.runForCompany(1L, false))
                 .thenThrow(new RuntimeException("크롤링 3회 모두 실패"));
 
         mockMvc.perform(post("/admin/crawl/1"))

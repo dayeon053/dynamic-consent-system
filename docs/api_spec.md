@@ -3,6 +3,7 @@
 > 원본: Sprint 01(2026-06-29) 작성 "DB 스키마 & API 명세서 초안"
 > 이 문서: Sprint 03(2026-07-21) 기준 실제 구현 코드 대조 후 갱신. 구조(2-1~2-6, 표 형식)는 원안을 그대로 유지하고, 내용만 실제 코드 기준으로 교체/보강했다. 2-7~2-8은 원안에 없던 신규 엔드포인트.
 > 2026-07-30 업데이트: 백엔드 확인사항 8건을 코드(파일:라인 단위)와 실 DB 조회, 로컬 서버(localhost:8080) 실제 호출로 전수 검증하고 그 결과를 반영. 대조 대상 코드 추가: `.../consenthistory/UserConsentHistoryController.java`, `.../consenthistory/UserConsentHistoryService.java`, `.../riskhistory/PersonalRiskHistoryService.java`, `.../crawler/PolicyChangeDetectionService.java`, `.../repository/PolicySnapshotRepository.java`, `frontend/app/src/main/java/com/dynamicconsent/data/remote/CompanyMapper.kt`, `frontend/app/src/main/java/com/dynamicconsent/monitor/WatchedAppRegistry.kt`.
+> v5, 2026-08-26: 소프트 삭제 도입 및 개발 마감 정리(A-0~A-5 최종 점검). `POST /admin/crawl/{companyId}`에 `force` 강제 재분석 파라미터(2-6) 추가, `GET /companies/{companyId}/consent-items`가 `active=true` 항목만 반환하도록 변경(2-2) — 둘 다 재크롤링해도 예전 ConsentItem이 위험도 계산에 섞이지 않게 하는 소프트 삭제(`ConsentItem.active`, V9 마이그레이션) 도입에 따른 변경. 이번이 이 문서의 마지막 갱신.
 
 ---
 
@@ -76,6 +77,7 @@
 - **Method**: GET
 - **URL**: `/companies/{companyId}/consent-items`
 - **설명**: 해당 기업의 필수+선택 동의 항목 전체를 5대 변수(DS/ES/TF/PC/AI) 점수와 함께 반환. `userId`가 체크한 선택동의 항목은 `checked: true`로 표시된다.
+- ⚠️ **2026-08-26 변경**: `active=true`(소프트 삭제 안 된) 항목만 반환한다. 재크롤링/재분석 결과 더 이상 유효하지 않은 예전 항목(`ConsentItemUpsertService.deactivateMissing()`이 `active=false`로 전환한 것)은 이 목록에서 제외된다 — 사용자가 더 이상 존재하지 않는 동의 항목을 화면에서 보는 일을 막기 위함. 해당 항목의 `UserConsentCheck`/`UserConsentHistory` 이력 자체는 DB에 그대로 보존된다(하드 삭제 아님).
 - **Path Parameters**: `companyId` (Long, 필수)
 - **Query Parameters**: `userId` (Long, 필수) — 원안엔 없던 파라미터. 사용자별 체크 상태(`checked`)를 판단하려면 실제 구현상 필수다. ⚠️ 이 엔드포인트도 2-1과 동일하게 **userId 존재 여부를 검증하지 않는다**(`ConsentApiService.getConsentItems()` → `personalRiskCalculator.findCheckedOptionalItemIds(userId, companyId)`가 단순 조회일 뿐 사용자 조회/검증이 없음). 2026-07-30 로컬 서버 실 호출로 `users` 테이블이 빈 상태에서 존재하지 않는 userId=1로도 200 정상 응답 확인.
 - **응답**: `List<ConsentItemResponse>`
@@ -194,11 +196,15 @@
 
 ## 2-6. 크롤링 수동 트리거 (관리자)
 
-- **상태**: **구현됨** (`AdminCrawlController.triggerCrawl`, PR #24/#26/#27)
+- **상태**: **구현됨** (`AdminCrawlController.triggerCrawl`, PR #24/#26/#27, `force` 파라미터 추가)
 - **Method**: POST — 원안과 일치
 - **URL**: `/admin/crawl/{companyId}` (원안의 `company_id`가 실제로는 camelCase `companyId`)
+- **Query Parameter**: `force` (boolean, optional, 기본값 `false`)
+  - `force=true`면 `shouldAnalyze` 판단(`isFirstCollection || changed`)을 건너뛰고 무조건 `riskAnalysisTriggered=true`로 위험도 재산출을 강제 실행한다.
+  - **용도**: 재크롤링 텍스트가 동일해도(`changed=false`) 예전 오염된 `ConsentItem`을 정리해야 하는 관리 목적. 예를 들어 페이지 내용은 그대로인데 그 기업의 `ConsentItem`에 예전(mock 등) 항목이 `active=true`로 남아 위험도 계산에 잘못 섞여 들어가는 경우, 일반 크롤링은 해시가 같아서 재분석 자체가 스킵되므로 절대 정리되지 않는다 — `force=true`로 강제 재분석해야 `ConsentItemUpsertService.deactivateMissing()`이 이번 크롤링 결과에 없는 예전 항목을 소프트 삭제(`active=false`)한다.
+  - `/admin/**`이므로 기존 `ROLE_ADMIN` 인증이 동일하게 적용된다(별도 권한 없음).
 - **인증**: `ROLE_ADMIN` 필요 (HTTP Basic — 공통 사항 참고). 미인증/오인증 시 401
-- **설명**: 특정 기업 1건에 대해 크롤링 → 변경감지 → (최초 수집이거나 실제로 약관이 변경됐으면) 위험도 재산출까지 동기적으로 즉시 실행한다(`PolicyCrawlScheduler.runForCompany`). 원안의 "비동기 트리거 후 상태만 반환" 방식이 아니라, 요청이 끝날 때까지 크롤링·(필요 시) LLM 호출·DB 저장이 전부 완료된 뒤 결과를 응답한다.
+- **설명**: 특정 기업 1건에 대해 크롤링 → 변경감지 → (최초 수집이거나 실제로 약관이 변경됐거나 `force=true`면) 위험도 재산출까지 동기적으로 즉시 실행한다(`PolicyCrawlScheduler.runForCompany`). 원안의 "비동기 트리거 후 상태만 반환" 방식이 아니라, 요청이 끝날 때까지 크롤링·(필요 시) LLM 호출·DB 저장이 전부 완료된 뒤 결과를 응답한다.
 - **응답**: `AdminCrawlTriggerResponse`
 - **응답 예시 — 성공 (변경 감지 + 위험도 재산출됨)**:
   ```json
@@ -211,8 +217,19 @@
     "message": "triggered"
   }
   ```
-  - `changed`: 이번 크롤링에서 전일 대비 약관 변경이 감지됐는지
-  - `riskAnalysisTriggered`: 최초 수집이거나 `changed=true`라서 LLM 재분석까지 실행했는지 (변경이 없으면 `false`이고 크롤링 확인만 하고 끝남)
+  - `changed`: 이번 크롤링에서 전일 대비 약관 변경이 감지됐는지 (텍스트 실제 변경 여부 그대로 — `force=true`로 강제 재분석됐어도 텍스트가 안 바뀌었으면 `changed`는 여전히 `false`다)
+  - `riskAnalysisTriggered`: 최초 수집이거나 `changed=true`이거나 `force=true`라서 LLM 재분석까지 실행했는지 (셋 다 아니면 `false`이고 크롤링 확인만 하고 끝남)
+- **응답 예시 — 성공 (`force=true`, 텍스트는 안 바뀌었지만 강제 재분석됨)**:
+  ```json
+  {
+    "companyId": 2,
+    "companyName": "네이버",
+    "changed": false,
+    "riskAnalysisTriggered": true,
+    "success": true,
+    "message": "triggered"
+  }
+  ```
 - **응답 예시 — 실패 (존재하지 않는 companyId, HTTP 404)**:
   ```json
   {

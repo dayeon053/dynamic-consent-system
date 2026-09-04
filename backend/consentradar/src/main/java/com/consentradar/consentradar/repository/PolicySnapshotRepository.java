@@ -17,6 +17,10 @@ public interface PolicySnapshotRepository extends JpaRepository<PolicySnapshot, 
 
     List<PolicySnapshot> findByCompany_CompanyId(Long companyId);
 
-    /** GET /notices — 전체 기업의 스냅샷을 확인 시각(crawledAt) 내림차순으로 페이징 조회. */
-    Page<PolicySnapshot> findAllByOrderByCrawledAtDesc(Pageable pageable);
+    /**
+     * GET /notices (api_spec_v2_final.md 확정 사항 1번, 2026-08-25) — 실제로 약관이 변경된
+     * (isChanged=true) 스냅샷만 확인 시각(crawledAt) 내림차순으로 페이징 조회. 변경이 없어
+     * crawledAt만 갱신된 최신 레코드(isChanged=false)는 제외한다.
+     */
+    Page<PolicySnapshot> findAllByIsChangedTrueOrderByCrawledAtDesc(Pageable pageable);
 }

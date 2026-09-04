@@ -47,7 +47,7 @@ public class PersonalRiskCalculator {
      * docs/personal_risk_server_decision.md 참고.
      */
     public RiskResult calculate(Long userId, Long companyId) {
-        List<ConsentItem> allItems = consentItemRepository.findByCompany_CompanyId(companyId);
+        List<ConsentItem> allItems = consentItemRepository.findByCompany_CompanyIdAndActiveTrue(companyId);
         if (allItems.isEmpty()) {
             return null;
         }

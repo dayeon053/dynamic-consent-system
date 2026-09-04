@@ -84,6 +84,21 @@ public class PolicyCrawlProcessor {
      */
     @Transactional
     public CompanyCrawlResult processCompany(Company company) {
+        return processCompany(company, false);
+    }
+
+    /**
+     * force=true면 shouldAnalyze 판단(isFirstCollection || changed)을 건너뛰고 무조건
+     * analyzeAndSaveRisk()를 실행한다. 재크롤링 텍스트가 동일해도 예전 오염된 ConsentItem을
+     * 정리해야 하는 관리 목적으로 사용한다 — 예: LLM_ENABLED=false였던 시절 mock으로 만들어진
+     * ConsentItem이 실제 페이지 내용은 그대로라 재크롤링해도 changed=false로 스킵되면서
+     * 영영 정리되지 않는 경우(2026-08-26 네이버 사례), ConsentItemUpsertService.
+     * deactivateMissing()이 이번 크롤링 결과 기준으로 예전 항목을 소프트 삭제하도록 강제로
+     * 한 번 더 돌려야 한다. 관리자 수동 트리거(POST /admin/crawl/{id}?force=true) 전용이며
+     * 배치({@link PolicyCrawlScheduler#runPipeline()})는 이 오버로드를 쓰지 않는다.
+     */
+    @Transactional
+    public CompanyCrawlResult processCompany(Company company, boolean force) {
         boolean isFirstCollection = policySnapshotRepository
                 .findFirstByCompany_CompanyIdOrderByCrawledAtDesc(company.getCompanyId())
                 .isEmpty();
@@ -91,7 +106,7 @@ public class PolicyCrawlProcessor {
         String rawText = policyBodyCrawler.fetchCleanText(company.getPrivacyUrl());
         PolicySnapshot snapshot = policyChangeDetectionService.detectAndSave(company, rawText);
 
-        boolean shouldAnalyze = isFirstCollection || snapshot.isChanged();
+        boolean shouldAnalyze = force || isFirstCollection || snapshot.isChanged();
         if (shouldAnalyze) {
             riskPipelineService.analyzeAndSaveRisk(company, rawText);
         }

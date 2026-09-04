@@ -14,6 +14,12 @@ java {
 	}
 }
 
+// 한글 주석·문자열이 포함된 소스를 OS 기본 인코딩(예: Windows의 x-windows-949)이 아닌
+// UTF-8로 컴파일하도록 강제한다 (common-model/build.gradle과 동일한 조치).
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+}
+
 repositories {
 	mavenCentral()
 }

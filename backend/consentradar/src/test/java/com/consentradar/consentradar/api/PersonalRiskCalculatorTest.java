@@ -43,7 +43,7 @@ class PersonalRiskCalculatorTest {
     void calculate_throwsIllegalArgumentException_whenDsScoreIsInvalid() {
         ConsentItem item = item(1, 1, 1, 1.0, 1.0);
         item.setDsScore(2); // 유효값 아님 (1, 3, 5만 허용)
-        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(item));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(COMPANY_ID)).thenReturn(List.of(item));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
                 .thenReturn(List.of());
 
@@ -54,7 +54,7 @@ class PersonalRiskCalculatorTest {
     void calculate_throwsIllegalArgumentException_whenEsScoreIsInvalid() {
         ConsentItem item = item(1, 1, 1, 1.0, 1.0);
         item.setEsScore(0); // 유효값 아님 (1, 2, 3만 허용)
-        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(item));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(COMPANY_ID)).thenReturn(List.of(item));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
                 .thenReturn(List.of());
 
@@ -64,7 +64,7 @@ class PersonalRiskCalculatorTest {
     @Test
     void calculate_throwsIllegalArgumentException_whenTfScoreIsInvalid() {
         ConsentItem item = item(1, 1, 4, 1.0, 1.0); // 유효값 아님 (1, 2, 3만 허용)
-        when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(item));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(COMPANY_ID)).thenReturn(List.of(item));
         when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
                 .thenReturn(List.of());
 
@@ -76,7 +76,7 @@ class PersonalRiskCalculatorTest {
         // DS=1,3,5 각각 유효값이라 예외 없이 정상 계산돼야 한다.
         for (int ds : List.of(1, 3, 5)) {
             ConsentItem item = item(ds, 1, 1, 1.0, 1.0);
-            when(consentItemRepository.findByCompany_CompanyId(COMPANY_ID)).thenReturn(List.of(item));
+            when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(COMPANY_ID)).thenReturn(List.of(item));
             when(userConsentCheckRepository.findAllByUser_UserIdAndConsentItem_Company_CompanyId(USER_ID, COMPANY_ID))
                     .thenReturn(List.of());
 

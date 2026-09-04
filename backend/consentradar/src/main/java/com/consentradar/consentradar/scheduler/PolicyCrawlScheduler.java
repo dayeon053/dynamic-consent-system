@@ -79,8 +79,17 @@ public class PolicyCrawlScheduler {
      * 관리자 수동 트리거 API에서 사용한다.
      */
     public CompanyCrawlResult runForCompany(Long companyId) {
+        return runForCompany(companyId, false);
+    }
+
+    /**
+     * force=true면 변경 여부와 무관하게 위험도 재산출을 강제로 실행한다
+     * ({@link PolicyCrawlProcessor#processCompany(Company, boolean)} 참고).
+     * 관리자 수동 트리거 API(POST /admin/crawl/{id}?force=true)에서 사용한다.
+     */
+    public CompanyCrawlResult runForCompany(Long companyId, boolean force) {
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 companyId: " + companyId));
-        return policyCrawlProcessor.processCompany(company);
+        return policyCrawlProcessor.processCompany(company, force);
     }
 }

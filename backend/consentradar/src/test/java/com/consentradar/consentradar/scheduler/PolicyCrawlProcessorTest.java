@@ -125,6 +125,43 @@ class PolicyCrawlProcessorTest {
         verify(riskPipelineService, times(1)).analyzeAndSaveRisk(any(Company.class), eq("최초 수집 본문"));
     }
 
+    /**
+     * [force=true 관리자 강제 재분석] 재크롤링 텍스트가 동일해도(changed=false) 예전 오염된
+     * ConsentItem을 정리해야 하는 관리 목적으로, force=true면 shouldAnalyze 판단을 건너뛰고
+     * 무조건 analyzeAndSaveRisk()를 실행해야 한다.
+     */
+    @Test
+    void processCompanyWithForce_triggersRiskAnalysis_evenWhenUnchanged() {
+        when(policyBodyCrawler.fetchCleanText(anyString())).thenReturn("변경 없는 본문");
+        when(policySnapshotRepository.findFirstByCompany_CompanyIdOrderByCrawledAtDesc(anyLong()))
+                .thenReturn(Optional.of(new PolicySnapshot()));
+        PolicySnapshot unchanged = new PolicySnapshot();
+        unchanged.setChanged(false);
+        when(policyChangeDetectionService.detectAndSave(any(Company.class), anyString())).thenReturn(unchanged);
+
+        CompanyCrawlResult result = newProcessor().processCompany(company(), true);
+
+        assertFalse(result.changed(), "changed 필드는 실제 텍스트 변경 여부를 그대로 반영해야 한다(false)");
+        assertTrue(result.riskAnalysisTriggered(), "force=true면 changed=false여도 재분석이 실행돼야 한다");
+        verify(riskPipelineService, times(1)).analyzeAndSaveRisk(any(Company.class), eq("변경 없는 본문"));
+    }
+
+    /** force=false(기본값)면 기존 로직 그대로 — changed=false일 때 스킵돼야 한다. */
+    @Test
+    void processCompanyWithoutForce_skipsRiskAnalysis_whenUnchanged() {
+        when(policyBodyCrawler.fetchCleanText(anyString())).thenReturn("변경 없는 본문");
+        when(policySnapshotRepository.findFirstByCompany_CompanyIdOrderByCrawledAtDesc(anyLong()))
+                .thenReturn(Optional.of(new PolicySnapshot()));
+        PolicySnapshot unchanged = new PolicySnapshot();
+        unchanged.setChanged(false);
+        when(policyChangeDetectionService.detectAndSave(any(Company.class), anyString())).thenReturn(unchanged);
+
+        CompanyCrawlResult result = newProcessor().processCompany(company(), false);
+
+        assertFalse(result.riskAnalysisTriggered());
+        verify(riskPipelineService, never()).analyzeAndSaveRisk(any(Company.class), anyString());
+    }
+
     @Test
     void processCompany_returnsCompanyIdAndName_matchingInput() {
         when(policyBodyCrawler.fetchCleanText(anyString())).thenReturn("본문");

@@ -100,10 +100,10 @@ public class ConsentApiService {
     @Transactional
     public ConsentPatchResponse toggleConsent(Long userId, Long consentItemId, Boolean desiredChecked) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 userId: " + userId));
 
         ConsentItem consentItem = consentItemRepository.findById(consentItemId)
-                .orElseThrow(() -> new IllegalArgumentException("동의항목을 찾을 수 없습니다: " + consentItemId));
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 consentItemId: " + consentItemId));
 
         // 기존 체크 레코드가 있으면 갱신, 없으면 신규 생성
         UserConsentCheck check = userConsentCheckRepository
@@ -193,10 +193,13 @@ public class ConsentApiService {
      * 동의 세부사항 탭(4-5)이 지금까지 프론트 mock 데이터로만 구현돼 있던 것을 실제
      * 데이터로 연동하기 위해 추가했다. 응답의 consentItemId를 그대로 PATCH
      * /users/{userId}/consents/{consentItemId} 호출에 사용하면 된다.
+     *
+     * 재크롤링으로 소프트 삭제(active=false)된 예전 항목은 응답에서 제외한다 — 사용자가
+     * 더 이상 존재하지 않는 항목을 동의 화면에서 보면 안 되기 때문이다.
      */
     @Transactional(readOnly = true)
     public List<ConsentItemResponse> getConsentItems(Long userId, Long companyId) {
-        List<ConsentItem> items = consentItemRepository.findByCompany_CompanyId(companyId);
+        List<ConsentItem> items = consentItemRepository.findByCompany_CompanyIdAndActiveTrue(companyId);
         Set<Long> checkedOptionalItemIds = personalRiskCalculator.findCheckedOptionalItemIds(userId, companyId);
 
         return items.stream()
