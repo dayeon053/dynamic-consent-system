@@ -3,6 +3,7 @@ package com.dynamicconsent.data.repository
 import com.dynamicconsent.data.model.ConsentChangeRecord
 import com.dynamicconsent.data.model.Organization
 import com.dynamicconsent.data.model.OrganizationDetail
+import com.dynamicconsent.data.model.RecentConsentChange
 import com.dynamicconsent.data.remote.CompanyMapper
 import com.dynamicconsent.data.remote.ConsentHistoryMapper
 import com.dynamicconsent.data.remote.ConsentRadarApi
@@ -48,6 +49,10 @@ class ApiOrganizationRepository(
      */
     suspend fun getConsentHistory(orgId: String): List<ConsentChangeRecord> =
         ConsentHistoryMapper.toRecords(api.getConsentHistory(userId), orgId)
+
+    /** 홈 화면용 — 기업 구분 없이 최신 [limit]건. */
+    suspend fun getRecentConsentChanges(limit: Int): List<RecentConsentChange> =
+        ConsentHistoryMapper.toRecentChanges(api.getConsentHistory(userId), limit)
 
     /** 다음 조회 때 서버에서 다시 받아오도록 캐시를 비운다. */
     fun invalidateCache() {

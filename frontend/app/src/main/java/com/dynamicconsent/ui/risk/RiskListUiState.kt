@@ -16,4 +16,6 @@ data class RiskListUiState(
      * 아무 표시 없이 보여주면 틀린 점수를 사실처럼 보여주게 된다.
      */
     val isFallback: Boolean = false,
+    /** 홈의 카테고리 바로가기로 들어온 경우 그 카테고리. null이면 전체 목록. */
+    val category: String? = null,
 )

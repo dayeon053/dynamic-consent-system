@@ -1,6 +1,7 @@
 package com.dynamicconsent.data.remote
 
 import com.dynamicconsent.data.model.ConsentChangeRecord
+import com.dynamicconsent.data.model.RecentConsentChange
 import com.dynamicconsent.data.remote.dto.ConsentHistoryResponse
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -33,6 +34,24 @@ object ConsentHistoryMapper {
                 )
             }
             .sortedByDescending { it.timestampMillis }
+
+    /**
+     * 기업 구분 없이 최신 [limit]건만 골라 반환한다 (홈 화면 '최근 동의 변경 내역').
+     * 어느 기업 것인지 함께 보여줘야 해서 companyName까지 담는다.
+     */
+    fun toRecentChanges(responses: List<ConsentHistoryResponse>, limit: Int): List<RecentConsentChange> =
+        responses
+            .mapNotNull { item ->
+                val millis = parseKstToEpochMillis(item.changedAt) ?: return@mapNotNull null
+                RecentConsentChange(
+                    companyName = item.companyName,
+                    consentTitle = item.itemName,
+                    enabled = item.isChecked,
+                    timestampMillis = millis,
+                )
+            }
+            .sortedByDescending { it.timestampMillis }
+            .take(limit)
 
     private fun parseKstToEpochMillis(changedAt: String): Long? = try {
         LocalDateTime.parse(changedAt)
