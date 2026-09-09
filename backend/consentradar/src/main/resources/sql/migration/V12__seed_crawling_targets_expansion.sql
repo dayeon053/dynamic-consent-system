@@ -26,14 +26,6 @@ SELECT '인스타그램', 'Meta Platforms, Inc.', 'SNS', 'com.instagram.android'
 WHERE NOT EXISTS (SELECT 1 FROM company WHERE company_name = '인스타그램');
 
 INSERT INTO company (company_name, legal_name, category, package_name, privacy_url, isms_certified, created_at, updated_at)
-SELECT '페이스북', 'Meta Platforms, Inc.', 'SNS', 'com.facebook.katana', 'https://www.facebook.com/privacy/policy', true, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM company WHERE company_name = '페이스북');
-
-INSERT INTO company (company_name, legal_name, category, package_name, privacy_url, isms_certified, created_at, updated_at)
-SELECT '라인', 'LY Corporation', '메신저', 'jp.naver.line.android', 'https://line.me/ko/terms/policy', true, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM company WHERE company_name = '라인');
-
-INSERT INTO company (company_name, legal_name, category, package_name, privacy_url, isms_certified, created_at, updated_at)
 SELECT '11번가', '십일번가 주식회사', '이커머스', 'com.elevenst', 'https://privacy.11st.co.kr/', true, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM company WHERE company_name = '11번가');
 
@@ -46,16 +38,8 @@ SELECT '옥션', '주식회사 지마켓', '이커머스', 'com.ebay.kr.auction'
 WHERE NOT EXISTS (SELECT 1 FROM company WHERE company_name = '옥션');
 
 INSERT INTO company (company_name, legal_name, category, package_name, privacy_url, isms_certified, created_at, updated_at)
-SELECT '무신사', '주식회사 무신사', '패션이커머스', 'com.musinsa.style', 'https://www.musinsa.com/member/join/agreement/privacy-policy', true, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM company WHERE company_name = '무신사');
-
-INSERT INTO company (company_name, legal_name, category, package_name, privacy_url, isms_certified, created_at, updated_at)
 SELECT 'SSG닷컴', '에스에스지닷컴 주식회사', '이커머스', 'com.ssg.serviceapp.android.egiftcertificate', 'https://member.ssg.com/comm/privacy/intgInfo.ssg', true, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM company WHERE company_name = 'SSG닷컴');
-
-INSERT INTO company (company_name, legal_name, category, package_name, privacy_url, isms_certified, created_at, updated_at)
-SELECT '오늘의집', '주식회사 버킷플레이스', '이커머스(홈/리빙)', 'com.bucketplace.android', 'https://ohou.se/privacy', false, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM company WHERE company_name = '오늘의집');
 
 INSERT INTO company (company_name, legal_name, category, package_name, privacy_url, isms_certified, created_at, updated_at)
 SELECT '카카오페이', '카카오페이 주식회사', '금융(간편결제)', 'com.kakaopay.app', 'https://www.kakaopay.com/terms/privacy', true, NOW(), NOW()
@@ -64,14 +48,6 @@ WHERE NOT EXISTS (SELECT 1 FROM company WHERE company_name = '카카오페이');
 INSERT INTO company (company_name, legal_name, category, package_name, privacy_url, isms_certified, created_at, updated_at)
 SELECT '카카오뱅크', '주식회사 카카오뱅크', '금융(은행)', 'com.kakaobank.channel', 'https://m.kakaobank.com/PrivacyPolicy;ctg=privacyContractCompany', true, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM company WHERE company_name = '카카오뱅크');
-
-INSERT INTO company (company_name, legal_name, category, package_name, privacy_url, isms_certified, created_at, updated_at)
-SELECT '페이코', '엔에이치엔페이코 주식회사', '금융(간편결제)', 'com.nhnent.payapp', 'https://id.payco.com/privacyPolicy.nhn', true, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM company WHERE company_name = '페이코');
-
-INSERT INTO company (company_name, legal_name, category, package_name, privacy_url, isms_certified, created_at, updated_at)
-SELECT '신한금융그룹', '신한금융지주회사', '금융(그룹)', 'com.shinhan.sbanking', 'https://shinhangroup.com/kr/main/policy/privacy', true, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM company WHERE company_name = '신한금융그룹');
 
 INSERT INTO company (company_name, legal_name, category, package_name, privacy_url, isms_certified, created_at, updated_at)
 SELECT '요기요', '주식회사 위대한상상', '배달', 'com.fineapp.yogiyo', 'https://www.yogiyo.co.kr/media/static/terms/p/20241106.html', true, NOW(), NOW()
@@ -90,16 +66,8 @@ SELECT '쏘카', '주식회사 쏘카', '모빌리티(카셰어링)', 'socar.Soc
 WHERE NOT EXISTS (SELECT 1 FROM company WHERE company_name = '쏘카');
 
 INSERT INTO company (company_name, legal_name, category, package_name, privacy_url, isms_certified, created_at, updated_at)
-SELECT '넷플릭스', 'Netflix, Inc.', 'OTT', 'com.netflix.mediaclient', 'https://www.netflix.com/privacy', false, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM company WHERE company_name = '넷플릭스');
-
-INSERT INTO company (company_name, legal_name, category, package_name, privacy_url, isms_certified, created_at, updated_at)
 SELECT '유튜브', 'Google LLC', 'OTT(동영상)', 'com.google.android.youtube', 'https://policies.google.com/privacy?hl=ko', false, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM company WHERE company_name = '유튜브');
-
-INSERT INTO company (company_name, legal_name, category, package_name, privacy_url, isms_certified, created_at, updated_at)
-SELECT '멜론', '주식회사 카카오엔터테인먼트', '음악스트리밍', 'com.iloen.melon', 'https://info.melon.com/terms/web/terms3.html', false, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM company WHERE company_name = '멜론');
 
 INSERT INTO company (company_name, legal_name, category, package_name, privacy_url, isms_certified, created_at, updated_at)
 SELECT '디시인사이드', '주식회사 디시인사이드', '커뮤니티', NULL, 'https://nstatic.dcinside.com/dc/m/policy/privacy.html', false, NOW(), NOW()
@@ -121,6 +89,3 @@ INSERT INTO company (company_name, legal_name, category, package_name, privacy_u
 SELECT '알리익스프레스', 'Alibaba.com Singapore E-Commerce Private Limited', '이커머스(해외직구)', 'com.alibaba.aliexpresshd', 'https://cdn.contract.alibaba.com/terms/privacy_policy_full/20240624154655415/20240624154655415.html', false, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM company WHERE company_name = '알리익스프레스');
 
-INSERT INTO company (company_name, legal_name, category, package_name, privacy_url, isms_certified, created_at, updated_at)
-SELECT '블라인드', '주식회사 팀블라인드', '커뮤니티(직장인)', 'com.teamblind.blind', 'https://www.teamblind.com/kr/privacy', false, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM company WHERE company_name = '블라인드');
