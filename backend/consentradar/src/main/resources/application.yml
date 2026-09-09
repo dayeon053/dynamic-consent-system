@@ -17,6 +17,9 @@ llm:
   api-key: ${OPENAI_API_KEY:}
   model: ${OPENAI_MODEL:gpt-4o-mini}
   base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1/chat/completions}
+  # 0으로 고정해 재현성을 최우선한다 — 위험도 점수가 실행 환경마다 달라지는 문제의
+  # 원인 중 하나였다(같은 약관 텍스트에도 LLM 샘플링이 흔들려 ds/es/tf/pc/ai 판정이 달라짐).
+  temperature: ${OPENAI_TEMPERATURE:0}
 
 # Windows 콘솔 기본 코드페이지(cp949 등) 때문에 로그의 한글이 깨져 보이는 문제 방지.
 # 실제 DB 저장값과는 무관한 순수 콘솔/로그파일 표시 문제였음(2026-08-26 확인) — 그래도

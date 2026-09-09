@@ -17,6 +17,11 @@ public class ConsentItemResponse {
     private final int tfScore;
     private final double pcScore;
     private final double aiScore;
+    private final String dsReason;
+    private final String esReason;
+    private final String tfReason;
+    private final String pcReason;
+    private final String aiReason;
 
     public ConsentItemResponse(ConsentItem item, boolean checked) {
         this.consentItemId = item.getConsentItemId();
@@ -28,6 +33,11 @@ public class ConsentItemResponse {
         this.tfScore       = item.getTfScore();
         this.pcScore       = item.getPcScore();
         this.aiScore       = item.getAiScore();
+        this.dsReason      = item.getDsReason();
+        this.esReason      = item.getEsReason();
+        this.tfReason      = item.getTfReason();
+        this.pcReason      = item.getPcReason();
+        this.aiReason      = item.getAiReason();
     }
 
     public Long                 getConsentItemId() { return consentItemId; }
@@ -39,4 +49,9 @@ public class ConsentItemResponse {
     public int                   getTfScore()       { return tfScore; }
     public double                getPcScore()       { return pcScore; }
     public double                getAiScore()       { return aiScore; }
+    public String                getDsReason()      { return dsReason; }
+    public String                getEsReason()      { return esReason; }
+    public String                getTfReason()      { return tfReason; }
+    public String                getPcReason()      { return pcReason; }
+    public String                getAiReason()      { return aiReason; }
 }
