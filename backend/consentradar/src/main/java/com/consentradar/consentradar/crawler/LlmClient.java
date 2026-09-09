@@ -23,25 +23,29 @@ public class LlmClient {
     private final String model;
     private final String baseUrl;
     private final boolean enabled;
+    private final double temperature;
 
     @Autowired
     public LlmClient(@Value("${llm.api-key:}") String apiKey,
                      @Value("${llm.model:gpt-4o-mini}") String model,
                      @Value("${llm.base-url:https://api.openai.com/v1/chat/completions}") String baseUrl,
-                     @Value("${llm.enabled:false}") boolean enabled) {
-        this(apiKey, model, baseUrl, enabled, HttpClient.newHttpClient(), new ObjectMapper());
+                     @Value("${llm.enabled:false}") boolean enabled,
+                     @Value("${llm.temperature:0}") double temperature) {
+        this(apiKey, model, baseUrl, enabled, temperature, HttpClient.newHttpClient(), new ObjectMapper());
     }
 
     LlmClient(String apiKey,
               String model,
               String baseUrl,
               boolean enabled,
+              double temperature,
               HttpClient httpClient,
               ObjectMapper objectMapper) {
         this.apiKey = apiKey;
         this.model = model;
         this.baseUrl = baseUrl;
         this.enabled = enabled;
+        this.temperature = temperature;
         this.httpClient = httpClient;
         this.objectMapper = objectMapper;
     }
@@ -66,7 +70,7 @@ public class LlmClient {
                                     "role", "user",
                                     "content", prompt
                             )),
-                            "temperature", 0.2
+                            "temperature", temperature
                     ))))
                     .build();
 
