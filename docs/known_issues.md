@@ -1,5 +1,28 @@
 # Known Issues
 
+## [기록] 크롤링 대상 기업 5개 → 32개 확장 1차 검증 — robots.txt 차단/URL 깨짐/SPA 렌더링 실패 사례
+
+작업일: 2026-09-09
+관련 코드: `PolicyBodyCrawler`(로직 변경 없음, 그대로 재검증), 신규 마이그레이션
+`V12__seed_crawling_targets_expansion.sql`
+관련 문서: `docs/crawling_targets_expansion_report.md`(전체 표·위험도 점수 포함)
+
+`crawling-targets-40-spec.md`/`company_seed_candidates.csv` 기준으로 기업 27개를 `company`
+테이블에 신규 시딩하고, 실제 `PolicyBodyCrawler`/`LlmClient`/`RiskCalculator`로 크롤링→LLM
+파싱→위험도 산출 전 구간을 검증했다. 27개 중 18개는 전 구간 성공(실제 OpenAI API 키 사용),
+5개는 robots.txt `Disallow: /`에 걸려 크롤링을 아예 실행하지 않았다(페이스북/무신사/페이코/
+쏘카/넷플릭스). 나머지 4개는 크롤링 자체가 실패했다 — 라인/오늘의집은 봇 차단으로 추정되는
+HTTP 403(3회 재시도 모두 실패), 마켓컬리는 SPA 렌더링 중 `networkidle` 대기 20초 초과
+(Timeout), 블라인드는 URL 자체가 깨져 있음(404, 스펙 문서에도 `needs_review`로 표시돼 있던
+항목). 스펙 문서가 이미 지적한 "1) robots.txt 차단 사이트 존재, 2) 버전/날짜형 URL 파손
+위험, 3) SPA 렌더링 실패 가능성" 세 이슈가 이번 실측에서도 그대로 재현됨을 확인했다.
+robots.txt 검사 로직 자체는 `PolicyBodyCrawler`에 아직 없다(이번 검증은 크롤러 밖에서 별도
+확인 후 스킵 여부를 판단) — 스펙 문서 권고대로 `robots_allowed` 플래그 도입 여부는 이번
+범위에서 다루지 않고 별도 논의로 남겼다. 상세 표와 기업별 위험도 점수는
+`docs/crawling_targets_expansion_report.md` 참고.
+
+---
+
 ## [해결됨] PATCH 토글이 위험도 히스토리를 append-only로 쌓지 못하던 버그
 
 작업일: 2026-08-08 (발견 및 해결, 같은 날)
