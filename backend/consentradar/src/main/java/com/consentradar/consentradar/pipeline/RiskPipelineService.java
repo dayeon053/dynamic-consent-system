@@ -153,7 +153,12 @@ public class RiskPipelineService {
                     riskInput.getExposureScope().score,
                     riskInput.getTimeFactor().score,
                     riskInput.getPurposeClarity().score,
-                    riskInput.getAiRiskFactor().score);
+                    riskInput.getAiRiskFactor().score,
+                    item.getDsReason(),
+                    item.getEsReason(),
+                    item.getTfReason(),
+                    item.getPcReason(),
+                    item.getAiReason());
 
             // 항목별 RiskScore 저장 (isRepresentative=false 기본값)
             RiskScore riskScore = new RiskScore();

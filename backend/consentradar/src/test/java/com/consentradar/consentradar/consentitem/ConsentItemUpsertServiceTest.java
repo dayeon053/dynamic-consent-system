@@ -43,7 +43,7 @@ class ConsentItemUpsertServiceTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         ConsentItem saved = upsertService.upsert(company, "새 항목", ConsentItem.ItemType.REQUIRED,
-                5, 2, 3, 1.0, 1.0);
+                5, 2, 3, 1.0, 1.0, "ds 근거", "es 근거", "tf 근거", "pc 근거", "ai 근거");
 
         assertTrue(saved.isActive(), "새로 만든 항목은 active=true여야 한다");
     }
@@ -62,7 +62,7 @@ class ConsentItemUpsertServiceTest {
         when(consentItemRepository.save(deactivated)).thenReturn(deactivated);
 
         ConsentItem result = upsertService.upsert(company, "예전 항목", ConsentItem.ItemType.OPTIONAL,
-                3, 2, 3, 1.0, 1.0);
+                3, 2, 3, 1.0, 1.0, "ds 근거", "es 근거", "tf 근거", "pc 근거", "ai 근거");
 
         assertTrue(result.isActive(), "재크롤링에서 다시 매칭된 항목은 active=true로 복구돼야 한다");
     }

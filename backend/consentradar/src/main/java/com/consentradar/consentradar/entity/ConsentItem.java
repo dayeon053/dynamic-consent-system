@@ -47,6 +47,23 @@ public class ConsentItem {
     @Column(nullable = false)
     private double aiScore;               // AI 위험계수 (AI Risk Factor) - 1.0 / 1.5
 
+    // LLM이 각 변수를 왜 그렇게 판단했는지 근거 문장 (UI 상세 화면에 점수보다 먼저 노출).
+    // 옛날에 upsert된 항목은 이 컬럼들이 null일 수 있다 — 재크롤링 전까지는 채워지지 않는다.
+    @Column(name = "ds_reason", columnDefinition = "TEXT")
+    private String dsReason;
+
+    @Column(name = "es_reason", columnDefinition = "TEXT")
+    private String esReason;
+
+    @Column(name = "tf_reason", columnDefinition = "TEXT")
+    private String tfReason;
+
+    @Column(name = "pc_reason", columnDefinition = "TEXT")
+    private String pcReason;
+
+    @Column(name = "ai_reason", columnDefinition = "TEXT")
+    private String aiReason;
+
     /**
      * 소프트 삭제 플래그. 재크롤링/재분석 시 이번 LLM 응답에 더 이상 나타나지 않는 기존
      * 항목은 물리적으로 지우지 않고 이 값만 false로 내린다({@link

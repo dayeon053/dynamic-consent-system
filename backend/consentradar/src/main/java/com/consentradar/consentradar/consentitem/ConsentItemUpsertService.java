@@ -32,31 +32,40 @@ public class ConsentItemUpsertService {
     }
 
     public ConsentItem upsert(Company company, String itemName, ConsentItem.ItemType itemType,
-                               int dsScore, int esScore, int tfScore, double pcScore, double aiScore) {
+                               int dsScore, int esScore, int tfScore, double pcScore, double aiScore,
+                               String dsReason, String esReason, String tfReason, String pcReason, String aiReason) {
         ConsentItem existing = consentItemRepository
                 .findByCompany_CompanyIdAndItemName(company.getCompanyId(), itemName)
                 .orElse(null);
 
         if (existing != null) {
-            applyScores(existing, itemType, dsScore, esScore, tfScore, pcScore, aiScore);
+            applyScores(existing, itemType, dsScore, esScore, tfScore, pcScore, aiScore,
+                    dsReason, esReason, tfReason, pcReason, aiReason);
             return consentItemRepository.save(existing);
         }
 
         ConsentItem toInsert = new ConsentItem();
         toInsert.setCompany(company);
         toInsert.setItemName(itemName);
-        applyScores(toInsert, itemType, dsScore, esScore, tfScore, pcScore, aiScore);
+        applyScores(toInsert, itemType, dsScore, esScore, tfScore, pcScore, aiScore,
+                dsReason, esReason, tfReason, pcReason, aiReason);
         return consentItemRepository.save(toInsert);
     }
 
     private void applyScores(ConsentItem item, ConsentItem.ItemType itemType,
-                              int dsScore, int esScore, int tfScore, double pcScore, double aiScore) {
+                              int dsScore, int esScore, int tfScore, double pcScore, double aiScore,
+                              String dsReason, String esReason, String tfReason, String pcReason, String aiReason) {
         item.setItemType(itemType);
         item.setDsScore(dsScore);
         item.setEsScore(esScore);
         item.setTfScore(tfScore);
         item.setPcScore(pcScore);
         item.setAiScore(aiScore);
+        item.setDsReason(dsReason);
+        item.setEsReason(esReason);
+        item.setTfReason(tfReason);
+        item.setPcReason(pcReason);
+        item.setAiReason(aiReason);
         // 재크롤링에서 다시 매칭됐다는 뜻이므로, 예전에 소프트 삭제(active=false)됐던
         // 항목이 재분석에서 다시 나타나면 되살린다.
         item.setActive(true);

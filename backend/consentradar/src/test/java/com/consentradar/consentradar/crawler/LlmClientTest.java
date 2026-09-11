@@ -27,7 +27,7 @@ class LlmClientTest {
 
         try {
             String baseUrl = "http://localhost:" + server.getAddress().getPort() + "/v1/chat/completions";
-            LlmClient client = new LlmClient("test-key", "gpt-4o-mini", baseUrl, true, HttpClient.newHttpClient(), new ObjectMapper());
+            LlmClient client = new LlmClient("test-key", "gpt-4o-mini", baseUrl, true, 0.0, HttpClient.newHttpClient(), new ObjectMapper());
 
             String result = client.callWithPrompt("hello");
 
