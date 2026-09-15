@@ -10,6 +10,7 @@ import com.dynamicconsent.data.repository.ConsentStateStore
 import com.dynamicconsent.data.repository.NoticeRepository
 import com.dynamicconsent.data.repository.OrganizationRepository
 import com.dynamicconsent.data.repository.RepositoryProvider
+import com.dynamicconsent.domain.CategoryGroups
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,7 +66,8 @@ class HomeViewModel @JvmOverloads constructor(
                     isLoading = false,
                     error = null,
                     riskyOrganizationCount = organizations.count { org -> org.riskGrade >= RISK_THRESHOLD },
-                    categories = organizations.map(Organization::category).distinct(),
+                    // "금융(은행)"·"금융(증권)"처럼 쪼개진 카테고리를 묶어, 기업이 많은 순으로 보여준다.
+                    categories = CategoryGroups.groupsByPopularity(organizations.map(Organization::category)),
                     recentChanges = recentChanges,
                     notices = notices.take(MAX_HOME_ITEMS),
                 )
