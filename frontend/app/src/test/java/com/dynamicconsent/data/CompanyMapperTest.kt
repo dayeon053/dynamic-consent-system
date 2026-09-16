@@ -4,6 +4,7 @@ import com.dynamicconsent.data.remote.CompanyMapper
 import com.dynamicconsent.data.remote.dto.CompanyResponse
 import com.dynamicconsent.data.remote.dto.ConsentItemResponse
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
@@ -18,6 +19,7 @@ class CompanyMapperTest {
         legalName: String? = "(주)카카오",
         category: String? = "SNS",
         packageName: String? = "com.kakao.talk",
+        riskSummary: String? = "위치정보와 연락처를 광고 목적으로 수집해 제3자에게 제공합니다.",
     ) = CompanyResponse(
         companyId = companyId,
         companyName = companyName,
@@ -28,6 +30,7 @@ class CompanyMapperTest {
         ismsCertified = true,
         riskScore = 43.5,
         riskGrade = null,
+        riskSummary = riskSummary,
     )
 
     private val consentItems = listOf(
@@ -89,6 +92,46 @@ class CompanyMapperTest {
 
         assertEquals("새", organization.logoText)
         assertEquals(0xFF00752FL, organization.logoColor)
+    }
+
+    @Test
+    fun `riskSummary는 서버 문구 그대로 위험도 분석에 실린다`() {
+        val detail = CompanyMapper.toOrganizationDetail(company(), consentItems)
+
+        assertEquals(
+            "위치정보와 연락처를 광고 목적으로 수집해 제3자에게 제공합니다.",
+            detail.riskAnalysis.summary,
+        )
+    }
+
+    @Test
+    fun `riskSummary가 없거나 비면 null이라 설명 칸을 숨긴다`() {
+        // 아직 분석 전인 기업, 구버전 서버 모두 여기로 떨어진다.
+        val none = CompanyMapper.toOrganizationDetail(company(riskSummary = null), consentItems)
+        val blank = CompanyMapper.toOrganizationDetail(company(riskSummary = "  "), consentItems)
+
+        assertNull(none.riskAnalysis.summary)
+        assertNull(blank.riskAnalysis.summary)
+    }
+
+    @Test
+    fun `동의 철회로 점수가 바뀌어도 설명 문구는 그대로다`() {
+        // toOrganizationDetail은 마지막에 RiskRecalculator를 한 번 태운다.
+        // 재산출은 점수·변수만 갱신하고 서버가 준 문구는 건드리지 않아야 한다.
+        val optional = ConsentItemResponse(
+            consentItemId = 12,
+            itemName = "마케팅 활용 동의",
+            itemType = ConsentItemResponse.TYPE_OPTIONAL,
+            checked = false,
+            dsScore = 5,
+        )
+
+        val detail = CompanyMapper.toOrganizationDetail(company(), consentItems + optional)
+
+        assertEquals(
+            "위치정보와 연락처를 광고 목적으로 수집해 제3자에게 제공합니다.",
+            detail.riskAnalysis.summary,
+        )
     }
 
     @Test
