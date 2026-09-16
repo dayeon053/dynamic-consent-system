@@ -50,6 +50,25 @@ tasks.named('test') {
 	}
 }
 
+// 로컬 실행 시 OPENAI_API_KEY 등을 매번 셸에서 export하지 않도록, 저장소 루트의 .env
+// (git 미추적, .gitignore에 이미 포함됨)를 읽어 bootRun 실행 환경에 주입한다. 팀원은
+// .env.example을 복사해 .env를 만들고 실제 키 값만 채워 넣으면 된다 — 이 파일에는 실제
+// 비밀값이 없다.
+tasks.named('bootRun') {
+	def envFile = file('../../.env')
+	if (envFile.exists()) {
+		envFile.readLines().each { line ->
+			line = line.trim()
+			if (line && !line.startsWith('#') && line.contains('=')) {
+				def idx = line.indexOf('=')
+				def key = line.substring(0, idx).trim()
+				def value = line.substring(idx + 1).trim()
+				environment key, value
+			}
+		}
+	}
+}
+
 tasks.register('integrationTest', Test) {
 	description = '실제 로컬 MySQL(consentradar DB)이 필요한 통합 테스트만 실행한다.'
 	group = 'verification'
