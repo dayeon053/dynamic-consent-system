@@ -447,6 +447,7 @@ class ConsentApiServiceTest {
         company.setPackageName("com.test.app");
         company.setPrivacyUrl("https://test.com/privacy");
         company.setIsmsCertified(true);
+        company.setRiskSummary("위치정보와 행태정보를 맞춤형 광고 목적으로 수집해 위험도가 높습니다.");
         // DS=5, ES=1,TF=1,PC=1.0,AI=1.0 -> 5 + (1*1*1*1)*2 = 7.0 -> LOW
         ConsentItem item = consentItemForCompany(1L, company, ConsentItem.ItemType.REQUIRED,
                 5, 1, 1, 1.0, 1.0);
@@ -470,7 +471,23 @@ class ConsentApiServiceTest {
         assertTrue(response.isIsmsCertified());
         assertEquals(0, BigDecimal.valueOf(7.0).compareTo(response.getRiskScore()));
         assertEquals("LOW", response.getRiskGrade());
+        assertEquals("위치정보와 행태정보를 맞춤형 광고 목적으로 수집해 위험도가 높습니다.", response.getRiskSummary());
         assertEquals(crawledAt, response.getCrawledAt());
+    }
+
+    @Test
+    void getCompaniesSortedByRisk_returnsNullRiskSummary_whenCompanyNotYetAnalyzed() {
+        // 멘토 피드백 반영: AI 분석 전(riskSummary 미설정) 기업은 null이어야 프론트가 설명 칸을 숨긴다.
+        Company company = company(100L, "분석전기업");
+
+        when(companyRepository.findAll()).thenReturn(List.of(company));
+        when(consentItemRepository.findByCompany_CompanyIdAndActiveTrue(100L)).thenReturn(List.of());
+        when(policySnapshotRepository.findFirstByCompany_CompanyIdOrderByCrawledAtDesc(100L))
+                .thenReturn(Optional.empty());
+
+        CompanyRiskResponse response = consentApiService.getCompaniesSortedByRisk(USER_ID).get(0);
+
+        assertNull(response.getRiskSummary());
     }
 
     @Test

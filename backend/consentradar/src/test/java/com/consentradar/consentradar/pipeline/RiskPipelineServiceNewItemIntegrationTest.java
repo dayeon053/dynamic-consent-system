@@ -47,6 +47,7 @@ class RiskPipelineServiceNewItemIntegrationTest {
     private static final String FIRST_CALL_JSON = """
             {
               "companyName": "테스트기업",
+              "riskSummary": "테스트용 위험 요약 문장입니다.",
               "consentItems": [
                 {
                   "itemName": "서비스 이용을 위한 필수 개인정보 수집",
@@ -68,6 +69,7 @@ class RiskPipelineServiceNewItemIntegrationTest {
     private static final String SECOND_CALL_JSON = """
             {
               "companyName": "테스트기업",
+              "riskSummary": "테스트용 위험 요약 문장입니다.",
               "consentItems": [
                 {
                   "itemName": "서비스 이용을 위한 필수 개인정보 수집",
@@ -95,6 +97,7 @@ class RiskPipelineServiceNewItemIntegrationTest {
     private static final String THIRD_CALL_JSON = """
             {
               "companyName": "테스트기업",
+              "riskSummary": "테스트용 위험 요약 문장입니다.",
               "consentItems": [
                 {
                   "itemName": "마케팅 정보 수신 동의",
