@@ -3,6 +3,7 @@ package com.dynamicconsent.data
 import com.dynamicconsent.data.model.Organization
 import com.dynamicconsent.data.model.OrganizationDetail
 import com.dynamicconsent.data.model.RiskGrade
+import com.dynamicconsent.data.remote.dto.NoticeResponse
 import com.dynamicconsent.domain.RiskCalculator
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -96,6 +97,19 @@ class MockJsonParsingTest {
                 assertTrue("$id: 제공처 이름 누락", provider.name.isNotBlank())
                 assertTrue("$id: 제공 목적 누락", provider.purpose.isNotBlank())
             }
+        }
+    }
+
+    @Test
+    fun `mock 공지는 서버와 같이 변경 건만 담는다`() {
+        // 서버(GET /notices)는 isChanged=true인 스냅샷만 내려준다
+        // (api_spec_v2_final.md 확정 사항 1번, 2026-08-25).
+        // mock이 변경 없는 건을 섞어 두면 데모에서만 보이는 화면이 생긴다.
+        val notices: List<NoticeResponse> = json.decodeFromString(asset("notices.json"))
+
+        assertTrue("mock 공지가 비어 있음", notices.isNotEmpty())
+        notices.forEach { notice ->
+            assertTrue("${notice.companyName}: 변경 없는 공지가 섞여 있음", notice.isChanged)
         }
     }
 

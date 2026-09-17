@@ -412,7 +412,8 @@ private fun NoticesSection(notices: List<Notice>) {
                         )
                     }
                     Spacer(modifier = Modifier.height(4.dp))
-                    // 서버 공지에는 제목이 없어(기업명·확인시각·변경여부만) 변경 여부로 문구를 만든다.
+                    // 서버 공지에는 제목이 없어(기업명·확인시각·변경여부만) 문구를 직접 만든다.
+                    // 서버는 변경 건만 내려주므로 아래 else는 정상 서버에서는 쓰이지 않는다.
                     Text(
                         text = if (notice.isChanged) {
                             "개인정보 처리방침이 변경되었습니다"

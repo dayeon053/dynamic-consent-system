@@ -29,7 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -37,16 +36,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dynamicconsent.data.model.Notice
 import com.dynamicconsent.ui.common.ErrorRetry
-import com.dynamicconsent.ui.theme.AppBackground
 import com.dynamicconsent.ui.theme.TextPrimary
 import com.dynamicconsent.ui.theme.TextSecondary
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
-
-private val ChangedBadge = Color(0xFFEF4444)
-private val UnchangedBadge = Color(0xFF9CA3AF)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,8 +94,16 @@ fun NoticeScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = "아직 확인된 약관이 없습니다.",
+                    text = "아직 변경된 약관이 없습니다.",
                     style = MaterialTheme.typography.bodyLarge,
+                    color = TextPrimary,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    // "확인된 약관이 없다"고 하면 서버가 놀고 있는 것처럼 읽힌다.
+                    // 실제로는 매일 확인하고 있고, 바뀐 게 없어서 목록이 빈 것이다.
+                    text = "매일 새벽 약관을 확인하고 있습니다. 바뀐 내용이 생기면 여기에 올라옵니다.",
+                    style = MaterialTheme.typography.bodyMedium,
                     color = TextSecondary,
                     textAlign = TextAlign.Center,
                 )
@@ -125,26 +128,27 @@ fun NoticeScreen(
 }
 
 /**
- * 목록의 시각이 '변경 시각'이 아니라 '확인 시각'임을 먼저 알린다.
- * 이 구분이 없으면 매일 갱신되는 시각을 보고 약관이 매일 바뀐 것으로 오해한다.
+ * 이 목록이 '매일의 확인 기록'이 아니라 '바뀐 것만 모은 기록'임을 먼저 알린다.
+ * 함께 적히는 시각이 '변경 시각'이 아니라 '확인 시각'이라는 것도 같이 짚는다.
  */
 @Composable
 private fun NoticeGuide() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(AppBackground, RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
             .padding(16.dp),
     ) {
         Text(
-            text = "약관을 마지막으로 확인한 기록입니다.",
+            text = "약관이 바뀐 기록만 모았습니다.",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             color = TextPrimary,
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "매일 확인하며, 내용이 바뀌지 않아도 확인 시각은 갱신됩니다. 실제 변경 여부는 '변경됨' 표시로 확인하세요.",
+            text = "매일 새벽 전체 기업의 약관을 확인하고, 바뀐 내용이 있을 때만 여기에 올라옵니다. " +
+                "함께 적힌 시각은 그 변경을 확인한 시각입니다.",
             style = MaterialTheme.typography.bodySmall,
             color = TextSecondary,
         )
@@ -156,9 +160,8 @@ private fun NoticeRow(notice: Notice) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(AppBackground, RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
             .padding(horizontal = 20.dp, vertical = 16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -169,28 +172,25 @@ private fun NoticeRow(notice: Notice) {
                 color = TextPrimary,
             )
             Spacer(modifier = Modifier.height(4.dp))
+            // 목록이 변경 건만 담으므로 줄마다 "변경됨" 배지를 붙이면 같은 말이 반복된다.
+            // 홈 화면과 같은 방식으로 문장에 담는다. false는 정상 서버에서는 오지 않는다.
             Text(
-                text = "확인 ${formatCheckedAt(notice.checkedAtMillis)}",
+                text = if (notice.isChanged) {
+                    "개인정보 처리방침이 변경되었습니다"
+                } else {
+                    "변경 없이 확인되었습니다"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextPrimary,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${formatCheckedAt(notice.checkedAtMillis)} 확인",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextSecondary,
             )
         }
-        ChangeBadge(isChanged = notice.isChanged)
     }
-}
-
-@Composable
-private fun ChangeBadge(isChanged: Boolean) {
-    val color = if (isChanged) ChangedBadge else UnchangedBadge
-    Text(
-        text = if (isChanged) "변경됨" else "변경 없음",
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.SemiBold,
-        color = Color.White,
-        modifier = Modifier
-            .background(color, RoundedCornerShape(8.dp))
-            .padding(horizontal = 10.dp, vertical = 4.dp),
-    )
 }
 
 /**
