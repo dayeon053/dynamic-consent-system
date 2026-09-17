@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -154,6 +155,9 @@ fun OrgDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    // 본문을 흰 바탕에 올린다. 안쪽 카드들이 화면 배경색(AppBackground)이라
+                    // 본문까지 같은 색이면 카드가 배경에 묻혀 글자만 나열된 것처럼 보였다.
+                    .background(MaterialTheme.colorScheme.surface)
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp),
             ) {
@@ -406,7 +410,8 @@ private fun InfoTabContent(companyInfo: CompanyInfo) {
             InfoRow("서비스명", companyInfo.serviceName)
             InfoRow("법인명", companyInfo.legalName)
             InfoRow("개인정보보호 인증항목", companyInfo.privacyCertification)
-            InfoRow("개인정보 처리방침", "바로가기", isLink = true)
+            // 마지막 줄 아래에는 구분선을 긋지 않는다 — 카드 안에 선만 떠 보인다.
+            InfoRow("개인정보 처리방침", "바로가기", isLink = true, showDivider = false)
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -422,21 +427,33 @@ private fun InfoTabContent(companyInfo: CompanyInfo) {
 }
 
 @Composable
-private fun InfoRow(label: String, value: String, isLink: Boolean = false) {
+private fun InfoRow(
+    label: String,
+    value: String,
+    isLink: Boolean = false,
+    showDivider: Boolean = true,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        // SpaceBetween은 값이 길어지면 남는 공간이 0이 되어 라벨과 값이 붙어 버린다.
+        // "개인정보보호 인증항목"에 인증이 여러 개 달리면 실제로 그렇게 보였다.
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
         Text(
-            value,
+            text = value,
             style = MaterialTheme.typography.bodyMedium,
             color = if (isLink) BrandGreen else TextPrimary,
+            // 라벨이 쓰고 남은 폭을 값이 받는다. 길면 오른쪽 정렬을 유지한 채 줄을 바꾼다.
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f),
         )
     }
-    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
+    if (showDivider) {
+        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
+    }
 }
 
 @Composable
