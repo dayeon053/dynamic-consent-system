@@ -155,6 +155,9 @@ fun OrgDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    // 본문을 흰 바탕에 올린다. 안쪽 카드들이 화면 배경색(AppBackground)이라
+                    // 본문까지 같은 색이면 카드가 배경에 묻혀 글자만 나열된 것처럼 보였다.
+                    .background(MaterialTheme.colorScheme.surface)
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp),
             ) {
