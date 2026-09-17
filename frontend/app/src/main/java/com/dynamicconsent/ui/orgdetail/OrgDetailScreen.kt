@@ -1,7 +1,13 @@
 package com.dynamicconsent.ui.orgdetail
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -398,6 +405,10 @@ private fun ConsentHistoryTabContent(history: List<ConsentChangeRecord>) {
 
 @Composable
 private fun InfoTabContent(companyInfo: CompanyInfo) {
+    val context = LocalContext.current
+    // 서버가 처리방침 주소를 주지 않은 기업은 빈 문자열로 내려온다(CompanyMapper).
+    val privacyPolicyUrl = companyInfo.privacyPolicyUrl.takeIf { it.isNotBlank() }
+
     Column {
         Text("기업정보", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
         Spacer(modifier = Modifier.height(12.dp))
@@ -411,7 +422,18 @@ private fun InfoTabContent(companyInfo: CompanyInfo) {
             InfoRow("법인명", companyInfo.legalName)
             InfoRow("개인정보보호 인증항목", companyInfo.privacyCertification)
             // 마지막 줄 아래에는 구분선을 긋지 않는다 — 카드 안에 선만 떠 보인다.
-            InfoRow("개인정보 처리방침", "바로가기", isLink = true, showDivider = false)
+            if (privacyPolicyUrl == null) {
+                // 주소가 없으면 링크처럼 보이게 두지 않는다. 눌러도 열 것이 없다.
+                InfoRow("개인정보 처리방침", "등록된 주소가 없습니다", showDivider = false)
+            } else {
+                InfoRow(
+                    label = "개인정보 처리방침",
+                    value = "바로가기",
+                    isLink = true,
+                    showDivider = false,
+                    onClick = { openInBrowser(context, privacyPolicyUrl) },
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -426,16 +448,32 @@ private fun InfoTabContent(companyInfo: CompanyInfo) {
     }
 }
 
+/**
+ * 기본 브라우저로 [url]을 연다.
+ *
+ * http(s) ACTION_VIEW는 Android 11+의 패키지 가시성 제한에서 예외라 `<queries>` 선언이 필요 없다.
+ * 다만 브라우저가 아예 없는 기기(일부 에뮬레이터 이미지 등)에서는 예외가 나므로 받아서 알린다.
+ */
+private fun openInBrowser(context: Context, url: String) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    } catch (e: ActivityNotFoundException) {
+        Toast.makeText(context, "링크를 열 수 있는 앱이 없습니다.", Toast.LENGTH_SHORT).show()
+    }
+}
+
 @Composable
 private fun InfoRow(
     label: String,
     value: String,
     isLink: Boolean = false,
     showDivider: Boolean = true,
+    onClick: (() -> Unit)? = null,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(vertical = 12.dp),
         // SpaceBetween은 값이 길어지면 남는 공간이 0이 되어 라벨과 값이 붙어 버린다.
         // "개인정보보호 인증항목"에 인증이 여러 개 달리면 실제로 그렇게 보였다.
