@@ -36,6 +36,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dynamicconsent.data.model.Notice
 import com.dynamicconsent.ui.common.ErrorRetry
+import com.dynamicconsent.ui.common.keepWordsWhole
 import com.dynamicconsent.ui.theme.TextPrimary
 import com.dynamicconsent.ui.theme.TextSecondary
 import java.text.SimpleDateFormat
@@ -94,7 +95,7 @@ fun NoticeScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = "아직 변경된 약관이 없습니다.",
+                    text = keepWordsWhole("아직 변경된 약관이 없습니다."),
                     style = MaterialTheme.typography.bodyLarge,
                     color = TextPrimary,
                     textAlign = TextAlign.Center,
@@ -102,7 +103,7 @@ fun NoticeScreen(
                 Text(
                     // "확인된 약관이 없다"고 하면 서버가 놀고 있는 것처럼 읽힌다.
                     // 실제로는 매일 확인하고 있고, 바뀐 게 없어서 목록이 빈 것이다.
-                    text = "매일 새벽 약관을 확인하고 있습니다. 바뀐 내용이 생기면 여기에 올라옵니다.",
+                    text = keepWordsWhole("매일 새벽 약관을 확인하고 있습니다. 바뀐 내용이 생기면 여기에 올라옵니다."),
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextSecondary,
                     textAlign = TextAlign.Center,
@@ -147,8 +148,10 @@ private fun NoticeGuide() {
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "매일 새벽 전체 기업의 약관을 확인하고, 바뀐 내용이 있을 때만 여기에 올라옵니다. " +
-                "함께 적힌 시각은 그 변경을 확인한 시각입니다.",
+            text = keepWordsWhole(
+                "매일 새벽 전체 기업의 약관을 확인하고, 바뀐 내용이 있을 때만 여기에 올라옵니다. " +
+                    "함께 적힌 시각은 그 변경을 확인한 시각입니다.",
+            ),
             style = MaterialTheme.typography.bodySmall,
             color = TextSecondary,
         )

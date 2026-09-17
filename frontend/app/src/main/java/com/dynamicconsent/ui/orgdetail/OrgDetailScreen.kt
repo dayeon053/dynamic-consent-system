@@ -59,6 +59,7 @@ import com.dynamicconsent.data.model.OrganizationDetail
 import com.dynamicconsent.data.model.ThirdPartyProvider
 import com.dynamicconsent.ui.common.ErrorRetry
 import com.dynamicconsent.ui.common.OrgLogo
+import com.dynamicconsent.ui.common.keepWordsWhole
 import com.dynamicconsent.ui.common.RiskAnalysisSection
 import com.dynamicconsent.ui.theme.AppBackground
 import com.dynamicconsent.ui.theme.BrandGreen
@@ -328,7 +329,7 @@ private fun ThirdPartyTabContent(
 private fun ThirdPartyRow(label: String, value: String) {
     Row(modifier = Modifier.padding(vertical = 2.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = TextSecondary, modifier = Modifier.width(72.dp))
-        Text(value, style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
+        Text(keepWordsWhole(value), style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
     }
 }
 
