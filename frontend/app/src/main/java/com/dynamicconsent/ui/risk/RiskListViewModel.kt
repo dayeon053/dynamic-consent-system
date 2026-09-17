@@ -10,6 +10,7 @@ import com.dynamicconsent.data.model.OrganizationDetail
 import com.dynamicconsent.data.repository.ConsentStateStore
 import com.dynamicconsent.data.repository.OrganizationRepository
 import com.dynamicconsent.data.repository.RepositoryProvider
+import com.dynamicconsent.domain.CategoryGroups
 import com.dynamicconsent.domain.RiskRecalculator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -83,7 +84,8 @@ class RiskListViewModel @JvmOverloads constructor(
                 }
                 val sortedOrganizations = recalculatedDetails.values
                     .map { it.organization }
-                    .filter { category == null || it.category == category }
+                    // 홈 바로가기가 묶음 이름("금융")을 넘기므로 "금융(은행)" 등 세부 분류도 함께 걸린다.
+                    .filter { category == null || CategoryGroups.groupOf(it.category) == category }
                     .sortedByDescending { it.riskScore }
 
                 _uiState.update { state ->

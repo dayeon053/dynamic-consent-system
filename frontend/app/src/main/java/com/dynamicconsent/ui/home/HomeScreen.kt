@@ -19,10 +19,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -30,10 +33,15 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -203,44 +211,99 @@ private fun RiskSummaryCard(riskyCount: Int, onClick: () -> Unit) {
  */
 @Composable
 private fun CategoryShortcuts(categories: List<String>, onCategoryClick: (String) -> Unit) {
-    Row(
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val visible = if (expanded) categories else categories.take(CATEGORY_COLUMNS)
+    val canExpand = categories.size > CATEGORY_COLUMNS
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(CardWhite, RoundedCornerShape(16.dp))
-            .padding(vertical = 16.dp, horizontal = 8.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
+            .padding(top = 16.dp, bottom = if (canExpand) 4.dp else 16.dp, start = 8.dp, end = 8.dp),
     ) {
-        categories.forEach { category ->
-            Column(
-                modifier = Modifier
-                    .clickable { onCategoryClick(category) }
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .background(AppBackground, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = category.take(1),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = BrandGreen,
+        // 한 줄에 칸을 고정 개수로 나눠, 카테고리가 늘어도 칸이 폭 0으로 눌리지 않게 한다.
+        // (예전엔 한 줄에 전부 넣어서 22종일 때 뒤쪽 이름이 세로로 한 글자씩 겹쳐 깨져 보였다)
+        visible.chunked(CATEGORY_COLUMNS).forEachIndexed { index, rowItems ->
+            if (index > 0) Spacer(modifier = Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth()) {
+                rowItems.forEach { category ->
+                    CategoryShortcut(
+                        category = category,
+                        onClick = { onCategoryClick(category) },
+                        modifier = Modifier.weight(1f),
                     )
                 }
-                Spacer(modifier = Modifier.height(6.dp))
+                // 마지막 줄이 덜 찼으면 빈 칸으로 채워 칸 너비를 다른 줄과 맞춘다.
+                repeat(CATEGORY_COLUMNS - rowItems.size) { Spacer(modifier = Modifier.weight(1f)) }
+            }
+        }
+
+        if (canExpand) {
+            HorizontalDivider(
+                modifier = Modifier.padding(top = 12.dp),
+                color = AppBackground,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(vertical = 10.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
-                    text = category,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.SemiBold,
+                    text = if (expanded) "접기" else "펼치기",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary,
+                )
+                Icon(
+                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = TextSecondary,
+                    modifier = Modifier.size(18.dp),
                 )
             }
         }
     }
 }
+
+@Composable
+private fun CategoryShortcut(category: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .clickable(onClick = onClick)
+            .padding(horizontal = 2.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .background(AppBackground, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = category.take(1),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = BrandGreen,
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = category,
+            style = MaterialTheme.typography.labelMedium,
+            color = TextPrimary,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            // 칸보다 긴 이름은 줄바꿈하지 않고 말줄임 — 칸 높이가 들쭉날쭉해지는 것을 막는다.
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/** 카테고리 바로가기 한 줄에 놓는 칸 수 (목업의 4개 배치) */
+private const val CATEGORY_COLUMNS = 4
 
 @Composable
 private fun SectionHeader(title: String, onMoreClick: (() -> Unit)? = null) {
