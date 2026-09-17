@@ -60,7 +60,6 @@ import com.dynamicconsent.data.model.ThirdPartyProvider
 import com.dynamicconsent.ui.common.ErrorRetry
 import com.dynamicconsent.ui.common.OrgLogo
 import com.dynamicconsent.ui.common.RiskAnalysisSection
-import com.dynamicconsent.ui.theme.AppBackground
 import com.dynamicconsent.ui.theme.BrandGreen
 import com.dynamicconsent.ui.theme.DividerColor
 import com.dynamicconsent.ui.theme.TextPrimary
@@ -199,7 +198,7 @@ private fun ConsentTabContent(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(AppBackground, RoundedCornerShape(12.dp)),
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp)),
             ) {
                 optionalConsents.forEach { item ->
                     OptionalConsentRow(
@@ -220,7 +219,7 @@ private fun ConsentTabContent(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(AppBackground, RoundedCornerShape(12.dp)),
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp)),
             ) {
                 requiredConsents.forEach { item ->
                     RequiredConsentRow(item)
@@ -304,7 +303,7 @@ private fun ThirdPartyTabContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 12.dp)
-                            .background(AppBackground, RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
                             .padding(20.dp),
                     ) {
                         Text(provider.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = TextPrimary)
@@ -350,7 +349,7 @@ private fun ConsentHistoryTabContent(history: List<ConsentChangeRecord>) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 20.dp)
-                    .background(AppBackground, RoundedCornerShape(12.dp)),
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp)),
             ) {
                 records.forEach { record ->
                     Row(
@@ -401,7 +400,7 @@ private fun InfoTabContent(companyInfo: CompanyInfo) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(AppBackground, RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
                 .padding(20.dp),
         ) {
             InfoRow("서비스명", companyInfo.serviceName)
