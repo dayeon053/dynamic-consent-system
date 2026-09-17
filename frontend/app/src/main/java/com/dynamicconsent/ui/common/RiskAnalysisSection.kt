@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.dynamicconsent.data.model.RiskAnalysis
 import com.dynamicconsent.data.model.RiskFactor
 import com.dynamicconsent.ui.theme.DividerColor
@@ -51,6 +52,31 @@ fun RiskAnalysisSection(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
+        // 왜 위험한지부터 설명하고 점수는 그 아래에 둔다 (멘토 피드백).
+        // 서버가 아직 분석하지 않은 기업은 문구가 없으므로 칸 자체를 띄우지 않는다.
+        riskAnalysis.summary?.let { summary ->
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background, RoundedCornerShape(12.dp))
+                    .padding(16.dp),
+            ) {
+                Text(
+                    text = "이 기업은 왜 위험한가요?",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                )
+                Text(
+                    text = summary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextBody,
+                    lineHeight = 22.sp,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        }
+
         // 위험도 점수
         Column(
             modifier = Modifier

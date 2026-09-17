@@ -25,6 +25,11 @@ data class CompanyResponse(
     /** 개인 맞춤 위험도(필수동의 + 사용자 체크 선택동의 기준). 산출 전이면 null */
     val riskScore: Double? = null,
     val riskGrade: RiskGrade? = null,
+    /**
+     * "어떤 정보를 어떤 목적으로 가져가서 위험한지"를 한두 문장으로 설명한 LLM 생성 문구.
+     * 점수·변수보다 먼저 보여줄 사용자 친화 설명이다. 분석 전이거나 구버전 서버면 null.
+     */
+    val riskSummary: String? = null,
 )
 
 /**

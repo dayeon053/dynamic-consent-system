@@ -116,7 +116,7 @@ object CompanyMapper {
                 optionalConsents = optionalConsents,
                 requiredConsents = requiredConsents,
             ),
-            riskAnalysis = placeholderAnalysis(),
+            riskAnalysis = placeholderAnalysis(company.riskSummary),
             companyInfo = CompanyInfo(
                 serviceName = company.companyName,
                 // 구버전 서버(V6 이전)는 legalName을 안 주므로 서비스명으로 떨어진다.
@@ -131,7 +131,8 @@ object CompanyMapper {
     }
 
     /** recalculate가 값·설명을 채우기 전의 기본 틀. 변수 설명은 서버 스키마에 없어 공통 문구를 쓴다. */
-    private fun placeholderAnalysis(): RiskAnalysis = RiskAnalysis(
+    private fun placeholderAnalysis(summary: String?): RiskAnalysis = RiskAnalysis(
+        summary = summary?.takeIf { it.isNotBlank() },
         riskScore = RiskCalculator.MIN_SCORE,
         riskGrade = RiskGrade.VERY_LOW,
         formula = "",
