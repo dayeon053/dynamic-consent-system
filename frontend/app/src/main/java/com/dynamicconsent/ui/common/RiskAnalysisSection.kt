@@ -77,7 +77,7 @@ fun RiskAnalysisSection(
                     color = TextPrimary,
                 )
                 Text(
-                    text = summary,
+                    text = keepWordsWhole(summary),
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextBody,
                     lineHeight = 22.sp,
@@ -118,7 +118,7 @@ fun RiskAnalysisSection(
         ) {
             Text("산출식", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
             Text(
-                text = riskAnalysis.formula,
+                text = keepWordsWhole(riskAnalysis.formula),
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextBody,
                 modifier = Modifier.padding(top = 8.dp),
@@ -279,7 +279,7 @@ private fun RiskFactorGauge(
             )
         }
         Text(
-            text = factor.description,
+            text = keepWordsWhole(factor.description),
             style = MaterialTheme.typography.bodySmall,
             color = TextBody,
             modifier = Modifier.padding(top = 6.dp),
