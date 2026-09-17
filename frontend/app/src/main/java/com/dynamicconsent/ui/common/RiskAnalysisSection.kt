@@ -87,8 +87,7 @@ fun RiskAnalysisSection(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                // background는 화면 배경과 같은 색이라 기업상세에서는 칸이 보이지 않는다.
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.background, RoundedCornerShape(12.dp))
                 .padding(16.dp),
         ) {
             Text("산출식", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
@@ -117,7 +116,7 @@ fun RiskAnalysisSection(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.background, RoundedCornerShape(12.dp))
                 .padding(16.dp),
         ) {
             Text(
