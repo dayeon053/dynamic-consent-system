@@ -95,6 +95,7 @@ public class LlmClient {
         return """
                 {
                   "companyName": "카카오",
+                  "riskSummary": "마케팅 정보 수신 동의 시 구매 이력과 관심사 등 행동 데이터를 광고 파트너사에 무기한 공유해 위험도가 높습니다.",
                   "consentItems": [
                     {
                       "itemName": "서비스 이용을 위한 필수 개인정보 수집",

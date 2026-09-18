@@ -21,6 +21,7 @@ class LlmResponseParserTest {
     private static final String VALID_JSON = """
             {
               "companyName": "카카오",
+              "riskSummary": "위치정보를 맞춤형 광고 목적으로 수집해 위험도가 높습니다.",
               "consentItems": [
                 {
                   "itemName": "위치정보 수집",
@@ -67,6 +68,7 @@ class LlmResponseParserTest {
         String lowerCaseJson = """
                 {
                   "companyName": "네이버",
+                  "riskSummary": "이메일 주소를 마케팅 목적으로 수집합니다.",
                   "consentItems": [
                     {
                       "itemName": "이메일 수집",
@@ -100,6 +102,7 @@ class LlmResponseParserTest {
     void throwsWhenCompanyNameMissing() {
         String json = """
                 {
+                  "riskSummary": "위치정보를 수집합니다.",
                   "consentItems": [
                     { "itemName": "이름", "itemType": "REQUIRED", "ds": "HIGH", "es": "HIGH", "tf": "LONG",
                       "pc": "NON_COMPLIANT", "ai": "HIGH_RISK" }
@@ -112,10 +115,27 @@ class LlmResponseParserTest {
     }
 
     @Test
+    void throwsWhenRiskSummaryMissing() {
+        String json = """
+                {
+                  "companyName": "카카오",
+                  "consentItems": [
+                    { "itemName": "이름", "itemType": "REQUIRED", "ds": "HIGH", "es": "HIGH", "tf": "LONG",
+                      "pc": "NON_COMPLIANT", "ai": "HIGH_RISK" }
+                  ]
+                }
+                """;
+        LlmParseException ex = assertThrows(LlmParseException.class,
+                () -> LlmResponseParser.parse(json));
+        assertTrue(ex.getMessage().contains("riskSummary"));
+    }
+
+    @Test
     void throwsWhenConsentItemsEmpty() {
         String json = """
                 {
                   "companyName": "카카오",
+                  "riskSummary": "위치정보를 수집합니다.",
                   "consentItems": []
                 }
                 """;
@@ -129,6 +149,7 @@ class LlmResponseParserTest {
         String json = """
                 {
                   "companyName": "카카오",
+                  "riskSummary": "위치정보를 수집합니다.",
                   "consentItems": [
                     { "itemType": "REQUIRED", "ds": "HIGH", "es": "HIGH", "tf": "LONG",
                       "pc": "NON_COMPLIANT", "ai": "HIGH_RISK" }
@@ -145,6 +166,7 @@ class LlmResponseParserTest {
         String json = """
                 {
                   "companyName": "카카오",
+                  "riskSummary": "위치정보를 수집합니다.",
                   "consentItems": [
                     { "itemName": "광고수신", "ds": "HIGH", "es": "HIGH", "tf": "LONG",
                       "pc": "NON_COMPLIANT", "ai": "HIGH_RISK" }
@@ -163,6 +185,7 @@ class LlmResponseParserTest {
         String json = """
                 {
                   "companyName": "카카오",
+                  "riskSummary": "위치정보를 수집합니다.",
                   "consentItems": [
                     { "itemName": "광고수신", "itemType": "필수", "ds": "HIGH", "es": "HIGH", "tf": "LONG",
                       "pc": "NON_COMPLIANT", "ai": "HIGH_RISK" }
@@ -180,6 +203,7 @@ class LlmResponseParserTest {
         String json = """
                 {
                   "companyName": "카카오",
+                  "riskSummary": "위치정보를 수집합니다.",
                   "consentItems": [
                     { "itemName": "광고수신", "itemType": "REQUIRED", "es": "HIGH", "tf": "LONG",
                       "pc": "NON_COMPLIANT", "ai": "HIGH_RISK" }
@@ -198,6 +222,7 @@ class LlmResponseParserTest {
         String json = """
                 {
                   "companyName": "카카오",
+                  "riskSummary": "위치정보를 수집합니다.",
                   "consentItems": [
                     { "itemName": "광고수신", "itemType": "REQUIRED", "ds": "INVALID", "es": "HIGH", "tf": "LONG",
                       "pc": "NON_COMPLIANT", "ai": "HIGH_RISK" }

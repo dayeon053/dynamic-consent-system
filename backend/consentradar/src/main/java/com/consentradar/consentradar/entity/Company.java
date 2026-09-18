@@ -36,6 +36,12 @@ public class Company {
     @Column(nullable = false)
     private boolean ismsCertified = false; // ISMS-P 인증 여부
 
+    // 사용자용 위험 요약 한 문장 ("어떤 정보를 어떤 목적으로 가져가서 위험한지"). LLM 분석이
+    // 아직 한 번도 성공하지 않은 기업은 null — 프론트가 이 경우 설명 칸을 숨긴다. 변수별 근거
+    // (ConsentItem.dsReason 등)와 달리 이건 동의 항목 단위가 아니라 기업 단위 요약이다.
+    @Column(columnDefinition = "TEXT")
+    private String riskSummary;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
 

@@ -19,6 +19,7 @@ public class CompanyRiskResponse {
     private final boolean ismsCertified;
     private final BigDecimal riskScore;
     private final String riskGrade;
+    private final String riskSummary;
     private final LocalDateTime crawledAt;
 
     public CompanyRiskResponse(Company company, RiskScore representativeScore, LocalDateTime crawledAt) {
@@ -31,6 +32,7 @@ public class CompanyRiskResponse {
         this.ismsCertified = company.isIsmsCertified();
         this.riskScore     = representativeScore != null ? representativeScore.getTotalScore() : null;
         this.riskGrade     = representativeScore != null ? representativeScore.getGrade().name() : null;
+        this.riskSummary   = company.getRiskSummary();
         this.crawledAt     = crawledAt;
     }
 
@@ -49,6 +51,7 @@ public class CompanyRiskResponse {
         this.ismsCertified = company.isIsmsCertified();
         this.riskScore     = personalResult != null ? BigDecimal.valueOf(personalResult.getScore()) : null;
         this.riskGrade     = personalResult != null ? personalResult.getGrade().name() : null;
+        this.riskSummary   = company.getRiskSummary();
         this.crawledAt     = crawledAt;
     }
 
@@ -61,5 +64,6 @@ public class CompanyRiskResponse {
     public boolean   isIsmsCertified()  { return ismsCertified; }
     public BigDecimal getRiskScore()    { return riskScore; }
     public String    getRiskGrade()     { return riskGrade; }
+    public String    getRiskSummary()   { return riskSummary; }
     public LocalDateTime getCrawledAt() { return crawledAt; }
 }

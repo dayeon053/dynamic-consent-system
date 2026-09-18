@@ -106,6 +106,10 @@ public class LlmResponseParser {
             throw new LlmParseException("필수 필드 누락: companyName");
         }
 
+        if (response.getRiskSummary() == null || response.getRiskSummary().isBlank()) {
+            throw new LlmParseException("필수 필드 누락: riskSummary");
+        }
+
         List<ConsentItemAnalysis> items = response.getConsentItems();
         if (items == null || items.isEmpty()) {
             throw new LlmParseException("필수 필드 누락: consentItems (빈 배열)");

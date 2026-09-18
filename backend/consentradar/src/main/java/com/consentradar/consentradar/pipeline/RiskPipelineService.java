@@ -9,6 +9,7 @@ import com.consentradar.consentradar.entity.Company;
 import com.consentradar.consentradar.entity.ConsentItem;
 import com.consentradar.consentradar.entity.PolicySnapshot;
 import com.consentradar.consentradar.entity.RiskScore;
+import com.consentradar.consentradar.repository.CompanyRepository;
 import com.consentradar.consentradar.repository.PolicySnapshotRepository;
 import com.consentradar.consentradar.repository.RiskScoreRepository;
 import com.dynamicconsent.algorithm.RiskCalculator;
@@ -47,17 +48,20 @@ public class RiskPipelineService {
     private final PolicySnapshotRepository policySnapshotRepository;
     private final ConsentItemUpsertService consentItemUpsertService;
     private final RiskScoreRepository riskScoreRepository;
+    private final CompanyRepository companyRepository;
 
     public RiskPipelineService(PolicyBodyCrawler policyBodyCrawler,
                                LlmClient llmClient,
                                PolicySnapshotRepository policySnapshotRepository,
                                ConsentItemUpsertService consentItemUpsertService,
-                               RiskScoreRepository riskScoreRepository) {
+                               RiskScoreRepository riskScoreRepository,
+                               CompanyRepository companyRepository) {
         this.policyBodyCrawler = policyBodyCrawler;
         this.llmClient = llmClient;
         this.policySnapshotRepository = policySnapshotRepository;
         this.consentItemUpsertService = consentItemUpsertService;
         this.riskScoreRepository = riskScoreRepository;
+        this.companyRepository = companyRepository;
     }
 
     /**
@@ -125,6 +129,13 @@ public class RiskPipelineService {
             throw new RuntimeException("LLM 파이프라인 실패: " + e.getMessage(), e);
         }
         System.out.println("[Pipeline] LLM 파싱 성공. 동의항목 수: " + llmResponse.getConsentItems().size() + "개");
+
+        // 4-1. 기업 단위 사용자용 위험 요약 문장 저장 (멘토 피드백 반영) — 변수별 근거
+        // (ConsentItem.dsReason 등)와 별개로, GET /companies 목록·상세·팝업에 공통 노출되는
+        // "어떤 정보를 어떤 목적으로 가져가서 위험한지" 한 문장. company는 호출부에서 이미
+        // 조회된 엔티티라 트랜잭션 경계에 따라 detach 상태일 수 있어 명시적으로 save한다.
+        company.setRiskSummary(llmResponse.getRiskSummary());
+        companyRepository.save(company);
 
         // 5. 동의항목별 위험도 산출 + RiskScore 저장
         System.out.println("[Pipeline] 5단계: 위험도 산출 시작");

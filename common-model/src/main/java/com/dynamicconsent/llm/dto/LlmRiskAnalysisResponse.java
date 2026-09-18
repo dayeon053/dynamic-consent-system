@@ -13,6 +13,7 @@ import java.util.List;
  * 예시 JSON:
  * {
  *   "companyName": "카카오",
+ *   "riskSummary": "위치정보와 행태정보를 맞춤형 광고 목적으로 수집하고 광고 파트너에게 제공해 위험도가 높습니다.",
  *   "consentItems": [
  *     {
  *       "itemName": "마케팅 수신 동의",
@@ -37,9 +38,13 @@ public class LlmRiskAnalysisResponse {
     @JsonProperty("companyName")
     private String companyName;
 
+    @JsonProperty("riskSummary")
+    private String riskSummary;
+
     @JsonProperty("consentItems")
     private List<ConsentItemAnalysis> consentItems;
 
     public String getCompanyName()                    { return companyName; }
+    public String getRiskSummary()                    { return riskSummary; }
     public List<ConsentItemAnalysis> getConsentItems() { return consentItems; }
 }
